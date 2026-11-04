@@ -80,6 +80,13 @@ header.top .who b{color:#fff}
 .card.me .kin{background:var(--red);color:#fff}
 .card.me .kin .term{color:#ffe1d6}
 .card.sel{outline:5px solid var(--gold);outline-offset:3px}
+.card.new{outline:5px dashed var(--ok);outline-offset:3px}
+.quick{border:3px solid var(--ok);background:#eef7f0;border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.quick .qh{font-size:18px;color:var(--ok);font-weight:700}
+.quick .qh b{color:var(--black)}
+.quick .qrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.quick .qrow .seg{flex:0 0 auto}
+.quick .qrow .seg button{min-height:42px;padding:0 16px;font-size:17px}
 
 /* ===== 側邊編輯面板 ===== */
 .panel{width:400px;max-width:100%;background:#fff;border-left:3px solid #e2d3bf;overflow-y:auto;padding:16px 18px 30px;display:flex;flex-direction:column;gap:14px}
@@ -839,6 +846,7 @@ let mine = null;        // 學生自己的族譜
 let tree = null;        // 目前畫面上的族譜（自己的，或老師正在看的）
 let viewing = null;     // 老師檢視中的項目
 let selId = null;
+let justAdded = null;   // 剛新增、還停在原本那個人的面板上
 let view = { s: 1, x: 40, y: 40 };
 let lastLayout = null;
 let savedAt = null;
@@ -926,7 +934,7 @@ function avatarSVG(g, age) {
 /* ---------- 樹狀圖 ---------- */
 function cardHTML(p, kin, pos, t) {
   const tn = FT.tribalName(p, t.people);
-  const cls = ['card', p.gender || '', p.id === t.meId ? 'me' : '', isBlank(p) ? 'blank' : '', p.id === selId ? 'sel' : ''].join(' ');
+  const cls = ['card', p.gender || '', p.id === t.meId ? 'me' : '', isBlank(p) ? 'blank' : '', p.id === selId ? 'sel' : '', p.id === justAdded ? 'new' : ''].join(' ');
   return `<div class="${cls}" data-id="${p.id}" style="left:${pos.x}px;top:${pos.y}px">
     <div class="kin"><span>${esc(kin.zh)}</span>${kin.term ? `<span class="term">${esc(kin.term)}</span>` : ''}</div>
     <div class="cb"><div class="av"><svg viewBox="0 0 60 60">${avatarSVG(p.gender, ageOf(pos.gen))}</svg></div>
@@ -1069,6 +1077,7 @@ const ADD_BTNS = [
   ['youngerSister', '＋妹妹'], ['son', '＋兒子'], ['daughter', '＋女兒'],
 ];
 function select(id) {
+  if (id !== selId) { justAdded = null; document.querySelectorAll('.card.new').forEach(c => c.classList.remove('new')); }
   selId = id;
   document.querySelectorAll('.card.sel').forEach(c => c.classList.remove('sel'));
   const c = document.querySelector(`.card[data-id="${id}"]`); if (c) c.classList.add('sel');
@@ -1076,7 +1085,7 @@ function select(id) {
   ensureVisible(id);
 }
 function closePanel() {
-  selId = null; $('#panel').classList.add('hidden');
+  selId = null; justAdded = null; document.querySelectorAll('.card.new').forEach(c => c.classList.remove('new')); $('#panel').classList.add('hidden');
   document.querySelectorAll('.card.sel').forEach(c => c.classList.remove('sel'));
 }
 function renderPanel(focusName) {
@@ -1090,8 +1099,19 @@ function renderPanel(focusName) {
   const hasParents = !!(p.fatherId || p.motherId);
   const fg = father && father.given ? father.given : '';
   const dis = ro ? 'disabled' : '';
-  panel.innerHTML = `
-    <div class="phead"><h2><span class="k">${esc(K.zh)}${K.term ? '・' + esc(K.term) : ''}</span>${esc(displayName(p, tree.people) || '（還沒填名字）')}</h2><button class="btn small" id="pClose">✕ 關閉</button></div>
+  const np = !ro && justAdded && tree.people[justAdded] ? tree.people[justAdded] : null;
+  const head = `<div class="phead"><h2><span class="k">${esc(K.zh)}${K.term ? '・' + esc(K.term) : ''}</span>${esc(displayName(p, tree.people) || '（還沒填名字）')}</h2><button class="btn small" id="pClose">✕ 關閉</button></div>`;
+  const quickHTML = np ? `<div class="quick">
+      <div class="qh">✓ 剛加入：<b>${esc(FT.kinMap(tree)[np.id].zh)}</b>　在這裡填名字就好</div>
+      <div class="duo">
+        <div class="field"><label for="qGiven">族名（只填自己的名字）</label><input type="text" id="qGiven" value="${esc(np.given)}" placeholder="例如：Watan" autocomplete="off" autocapitalize="words"></div>
+        <div class="field"><label for="qHan">漢名</label><input type="text" id="qHan" value="${esc(np.han)}" placeholder="例如：林大明" autocomplete="off"></div>
+      </div>
+      <div class="preview" id="qPv" style="margin-top:0"></div>
+      <div class="qrow"><span style="font-weight:700">性別</span><div class="seg" id="qG"><button class="M ${np.gender === 'M' ? 'on' : ''}" data-g="M">男</button><button class="F ${np.gender === 'F' ? 'on' : ''}" data-g="F">女</button></div>
+        <button class="btn small" id="qGo" style="margin-left:auto">改他的其他資料 →</button></div>
+    </div>` : '';
+  const fieldsHTML = `
     <div class="field">
       <label for="fGiven">族名（只填自己的名字）</label>
       <input type="text" id="fGiven" value="${esc(p.given)}" placeholder="例如：Sayun、Watan" autocomplete="off" autocapitalize="words" ${dis} ${p.fullOverride ? 'disabled' : ''}>
@@ -1104,12 +1124,13 @@ function renderPanel(focusName) {
       </div>
       <div class="field">
         <label>性別</label>
-        <div class="seg"><button class="M ${p.gender === 'M' ? 'on' : ''}" data-g="M" ${dis}>男</button><button class="F ${p.gender === 'F' ? 'on' : ''}" data-g="F" ${dis}>女</button></div>
+        <div class="seg" id="fG"><button class="M ${p.gender === 'M' ? 'on' : ''}" data-g="M" ${dis}>男</button><button class="F ${p.gender === 'F' ? 'on' : ''}" data-g="F" ${dis}>女</button></div>
       </div>
-    </div>
-    ${ro ? '' : `<div class="sect">加家人（加在「${esc(displayName(p, tree.people) || K.zh)}」旁邊）</div>
-    <div class="addgrid">${ADD_BTNS.map(([r, l]) => `<button data-rel="${r}" ${(r === 'father' && p.fatherId) || (r === 'mother' && p.motherId) ? 'disabled' : ''}>${l}</button>`).join('')}</div>`}
-    <details class="more" ${p.fullOverride ? 'open' : ''}><summary>更多設定（自己打完整族名${hasParents ? '、排行' : ''}）</summary>
+    </div>`;
+  const addHTML = ro ? '' : `<div class="sect">加家人（加在「${esc(displayName(p, tree.people) || K.zh)}」旁邊）</div>
+    <div class="addgrid">${ADD_BTNS.map(([r, l]) => `<button data-rel="${r}" ${(r === 'father' && p.fatherId) || (r === 'mother' && p.motherId) ? 'disabled' : ''}>${l}</button>`).join('')}</div>
+    ${np ? '<div class="note" style="font-size:15px;color:#6f625a;margin-top:-6px">加好的人會留在「' + esc(displayName(p, tree.people) || K.zh) + '」這裡，可以接著一直加。</div>' : ''}`;
+  const moreHTML = `<details class="more" ${p.fullOverride ? 'open' : ''}><summary>更多設定（自己打完整族名${hasParents ? '、排行' : ''}）</summary>
       <label class="check"><input type="checkbox" id="fOv" ${p.fullOverride ? 'checked' : ''} ${dis}> 自己打完整的族名（家裡的寫法不一樣時）</label>
       <div class="field ${p.fullOverride ? '' : 'hidden'}" id="ovWrap">
         <label for="fFull">完整族名</label>
@@ -1121,8 +1142,9 @@ function renderPanel(focusName) {
         <div class="note">用來判斷「哥哥／弟弟」「伯伯／叔叔」。</div>
       </div>` : ''}
     </details>
-    ${ro ? '' : `    ${p.id !== tree.meId ? '<button class="danger" id="pDel">🗑 刪除這個人</button>' : ''}`}
-  `;
+    ${ro || p.id === tree.meId ? '' : '<button class="danger" id="pDel">🗑 刪除這個人</button>'}`;
+  panel.innerHTML = head + (np ? quickHTML + addHTML + `<div class="sect">「${esc(displayName(p, tree.people) || K.zh)}」的資料</div>` + fieldsHTML : fieldsHTML + addHTML) + moreHTML;
+  if (np) panel.scrollTop = 0;
   const updPreview = () => {
     const tn = FT.tribalName(p, tree.people);
     let how = '';
@@ -1149,20 +1171,38 @@ function renderPanel(focusName) {
     changed();
   };
   $('#fFull').oninput = e => { p.fullOverride = e.target.value; changed(); };
-  panel.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
-    p.gender = b.dataset.g; panel.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b)); changed();
+  panel.querySelectorAll('#fG button').forEach(b => b.onclick = () => {
+    p.gender = b.dataset.g; panel.querySelectorAll('#fG button').forEach(x => x.classList.toggle('on', x === b)); changed();
   });
+  if (np) {
+    const updQ = () => {
+      const tn = FT.tribalName(np, tree.people);
+      const nf = np.fatherId && tree.people[np.fatherId];
+      $('#qPv').innerHTML = `完整族名：<b>${tn ? esc(tn) : '—'}</b>${np.given && nf && nf.given ? `（${esc(np.given)}＋爸爸的名字 ${esc(nf.given)}）` : ''}`;
+    };
+    const qChanged = () => { saveMine(); renderTree(); updQ(); updPreview(); refreshHeading(); };
+    updQ();
+    $('#qGiven').oninput = e => { np.given = e.target.value.replace(/\s+/g, ' ').trim(); qChanged(); };
+    $('#qHan').oninput = e => { np.han = e.target.value.trim(); qChanged(); };
+    $('#qGiven').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); $('#qHan').focus(); } };
+    $('#qHan').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } };
+    panel.querySelectorAll('#qG button').forEach(b => b.onclick = () => {
+      np.gender = b.dataset.g; panel.querySelectorAll('#qG button').forEach(x => x.classList.toggle('on', x === b)); qChanged();
+    });
+    $('#qGo').onclick = () => { const id = np.id; select(id); focusPerson(id, Math.max(view.s, 0.8)); };
+  }
   const bo = $('#fBo'); if (bo) bo.oninput = e => { const v = parseInt(e.target.value, 10); p.bo = isNaN(v) ? null : v; changed(); };
   panel.querySelectorAll('.addgrid button').forEach(b => b.onclick = () => doAdd(p.id, b.dataset.rel));
   const del = $('#pDel'); if (del) del.onclick = () => doDelete(p.id);
-  if (focusName) setTimeout(() => { const f = $('#fGiven'); if (f && !f.disabled) f.focus(); }, 60);
+  if (focusName) setTimeout(() => { const f = np ? $('#qGiven') : $('#fGiven'); if (f && !f.disabled) f.focus(); }, 60);
 }
 function doAdd(anchorId, rel) {
   const a = tree.people[anchorId];
   const go = otherParentId => {
     try {
       const r = FT.addRelative(tree, anchorId, rel, otherParentId === undefined ? {} : { otherParentId });
-      saveMine(); renderTree(); select(r.id); renderPanel(true);
+      justAdded = r.id; selId = anchorId;
+      saveMine(); renderTree(); renderPanel(true); ensureVisible(r.id);
       if (r.note) toast(r.note, 4200);
     } catch (e) { toast('⚠ ' + e.message, 3600); }
   };
@@ -1519,7 +1559,7 @@ $('#bHelp').onclick = () => modal('❓ 使用說明', `
   <div class="sect">學生</div>
   <ol style="margin:0;padding-left:1.4em">
     <li>第一次打開：填班級、座號、自己的族名或漢名、性別，按「開始」。</li>
-    <li><b>點一下任何一張卡片</b>，在旁邊按「＋爸爸」「＋媽媽」「＋哥哥」……就會長出新卡片，接著填名字。</li>
+    <li><b>點一下任何一張卡片</b>，在旁邊按「＋爸爸」「＋媽媽」「＋哥哥」……就會長出新卡片，在綠色框裡填名字。畫面會停在原本那個人，可以接著一直加。</li>
     <li>族名欄<b>只填這個人自己的名字</b>，爸爸的名字會自動接在後面（子連父名）。家裡寫法不一樣時，到「更多設定」自己打完整族名。</li>
     <li>資料會<b>自動存在這台平板</b>。做完或下課前，按「💾 匯出檔案」，把檔案交給老師。</li>
     <li>換平板或資料不見時，按「📂 開啟檔案」打開之前匯出的檔案，就能接著做。</li>
