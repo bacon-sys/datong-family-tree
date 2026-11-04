@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>我的家族樹｜泰雅族譜建置系統｜宜蘭縣立大同國中</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#a8231c; --red-d:#7a1712; --black:#1f1a17; --earth:#8a5a3b; --sand:#f4ece0; --cream:#fbf7f1;
+  --line:#5b4a3f; --muted:#6f625a; --gold:#d9a420; --male:#2f4858; --female:#a8231c; --ok:#2e6b3f;
+  --fs:18px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:"Noto Sans TC","Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",sans-serif;font-size:var(--fs);color:var(--black);background:var(--cream);line-height:1.6;overflow:hidden}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+
+/* ===== 頁首（泰雅菱形紋） ===== */
+.weave{height:14px;background:
+  linear-gradient(135deg,var(--red) 25%,transparent 25%) -7px 0/14px 14px,
+  linear-gradient(225deg,var(--red) 25%,transparent 25%) -7px 0/14px 14px,
+  linear-gradient(315deg,var(--black) 25%,transparent 25%) 0 0/14px 14px,
+  linear-gradient(45deg,var(--black) 25%,var(--sand) 25%) 0 0/14px 14px}
+header.top{background:var(--black);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header.top .brand{display:flex;flex-direction:column;line-height:1.3}
+header.top .school{font-size:15px;color:#e8d9c4;letter-spacing:.08em}
+header.top h1{margin:0;font-size:26px;font-weight:900;letter-spacing:.04em}
+header.top h1 small{font-size:16px;font-weight:500;color:#f0b9a8;margin-left:10px}
+header.top .who{margin-left:auto;font-size:17px;color:#e8d9c4;text-align:right}
+header.top .who b{color:#fff}
+.save-state{font-size:15px;color:#b9e3c3}
+.save-state.warn{color:#ffcf8a}
+
+/* ===== 工具列 ===== */
+.toolbar{display:flex;flex-wrap:wrap;gap:7px;padding:10px 14px;background:var(--sand);border-bottom:2px solid #e2d3bf;align-items:center}
+.btn{border:2px solid var(--line);background:#fff;border-radius:12px;padding:8px 14px;font-size:18px;font-weight:700;display:inline-flex;align-items:center;gap:6px;min-height:48px;transition:transform .05s}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--red);border-color:var(--red-d);color:#fff}
+.btn.dark{background:var(--black);border-color:var(--black);color:#fff}
+.btn.ghost{background:transparent}
+.btn.small{min-height:40px;padding:4px 10px;font-size:16px}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.toolbar .sep{flex:1}
+.zoomgrp{display:flex;gap:4px}
+.zoomgrp .btn{min-width:48px;justify-content:center;padding:6px 8px}
+
+/* ===== 主畫面 ===== */
+.main{position:absolute;left:0;right:0;bottom:0;display:flex}
+.viewport{flex:1;position:relative;overflow:hidden;touch-action:none;cursor:grab;
+  background-color:#fbf7f1;background-image:radial-gradient(#e5d8c6 1.2px,transparent 1.2px);background-size:26px 26px}
+.viewport.dragging{cursor:grabbing}
+.stage{position:absolute;left:0;top:0;transform-origin:0 0}
+.stage #lines{position:absolute;left:0;top:0;overflow:visible}
+.hint{position:absolute;left:14px;bottom:12px;background:rgba(255,255,255,.92);border:1.5px solid #d8c7b2;border-radius:12px;padding:6px 12px;font-size:16px;color:var(--muted);pointer-events:none}
+.readonly-bar{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:var(--black);color:#fff;border-radius:14px;padding:8px 10px 8px 16px;display:flex;gap:10px;align-items:center;z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.25);flex-wrap:wrap;max-width:95%}
+.readonly-bar .btn{min-height:40px;font-size:16px;color:var(--black)}
+.readonly-bar .btn.primary{color:#fff}
+
+/* ===== 卡片 ===== */
+.card{position:absolute;width:224px;height:124px;background:#fff;border:2.5px solid #b9a690;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 2px 6px rgba(60,40,20,.12);cursor:pointer;user-select:none;-webkit-user-select:none}
+.card .kin{display:flex;justify-content:space-between;align-items:baseline;gap:6px;padding:3px 10px;background:var(--sand);font-size:16px;font-weight:700;min-height:30px;white-space:nowrap}
+.card .kin .term{font-style:italic;color:var(--red);font-weight:700;font-size:14.5px;overflow:hidden;text-overflow:ellipsis}
+.card .cb{display:flex;gap:8px;padding:6px 8px 0 6px;align-items:flex-start}
+.card .av{width:60px;height:60px;flex:none;border-radius:50%;overflow:hidden}
+.card .av svg{width:100%;height:100%;display:block}
+.card .tx{flex:1;min-width:0}
+.card .tn{font-size:19px;font-weight:900;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.card .hn{font-size:16px;color:#4b403a;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.blank .av{opacity:.45}
+.card .empty{color:#a99a8e;font-weight:500;font-size:16px}
+.card .g{position:absolute;right:8px;bottom:6px;font-size:14px;font-weight:700;color:#fff;border-radius:8px;padding:0 7px;line-height:22px}
+.card.M{border-left:9px solid var(--male)} .card.M .g{background:var(--male)}
+.card.F{border-left:9px solid var(--female)} .card.F .g{background:var(--female)}
+.card.blank{border-style:dashed;background:#fffdf9}
+.card.me{border-color:var(--red);border-width:3.5px;box-shadow:0 0 0 4px rgba(168,35,28,.15),0 4px 10px rgba(60,40,20,.2)}
+.card.me .kin{background:var(--red);color:#fff}
+.card.me .kin .term{color:#ffe1d6}
+.card.sel{outline:5px solid var(--gold);outline-offset:3px}
+
+/* ===== 側邊編輯面板 ===== */
+.panel{width:400px;max-width:100%;background:#fff;border-left:3px solid #e2d3bf;overflow-y:auto;padding:16px 18px 30px;display:flex;flex-direction:column;gap:14px}
+.panel h2{margin:0;font-size:24px;line-height:1.3}
+.panel h2 .k{display:block;font-size:17px;color:var(--red);font-weight:700}
+.phead{display:flex;align-items:flex-start;gap:10px;justify-content:space-between}
+.phead .btn{flex:none}
+details.more{border:2px solid #eadfcf;border-radius:12px;padding:6px 12px}
+details.more summary{font-weight:700;cursor:pointer;font-size:17px;color:var(--muted)}
+details.more[open]{display:flex;flex-direction:column;gap:12px;padding-bottom:12px}
+.field label{display:block;font-weight:700;font-size:17px;margin-bottom:4px}
+.field input[type=text],.field input[type=number]{width:100%;font-size:20px;padding:10px 12px;border:2px solid #cdbba5;border-radius:10px;background:#fffdf9}
+.field input:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 3px rgba(168,35,28,.15)}
+.field .note{font-size:15px;color:var(--muted);margin-top:4px}
+.preview{background:var(--sand);border-radius:10px;padding:6px 12px;font-size:15px;margin-top:6px;color:var(--muted)}
+.preview b{font-size:20px;color:var(--black);margin:0 4px}
+.duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.check{display:flex;gap:8px;align-items:center;font-size:16px;margin-top:6px}
+.check input{width:22px;height:22px}
+.seg{display:flex;gap:8px}
+.seg button{flex:1;min-height:50px;border:2px solid #cdbba5;background:#fff;border-radius:12px;font-weight:700;font-size:19px}
+.seg button.on.M{background:var(--male);border-color:var(--male);color:#fff}
+.seg button.on.F{background:var(--female);border-color:var(--female);color:#fff}
+.addgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.addgrid button{min-height:56px;border:2px dashed var(--earth);background:#fffaf3;border-radius:12px;font-weight:700;font-size:18px;color:var(--black)}
+.addgrid button:hover:not(:disabled){background:#fdeee0;border-style:solid}
+.addgrid button:disabled{opacity:.3;cursor:not-allowed}
+.sect{font-weight:900;font-size:18px;border-left:6px solid var(--red);padding-left:8px;margin-top:4px}
+.danger{border:2px solid var(--red);color:var(--red);background:#fff;border-radius:12px;min-height:48px;font-weight:700}
+
+/* ===== 對話框 ===== */
+.modal-bg{position:fixed;inset:0;background:rgba(31,26,23,.55);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal{background:#fff;border-radius:18px;max-width:640px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+.modal .mh{padding:0}
+.modal .mh h3{margin:0;padding:14px 20px;font-size:23px;background:var(--black);color:#fff}
+.modal .mb{padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.modal .mf{padding:12px 20px 18px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.terms-table{width:100%;border-collapse:collapse;font-size:17px}
+.terms-table td,.terms-table th{border-bottom:1px solid #eadfcf;padding:6px 8px;text-align:left}
+.terms-table input{width:100%;font-size:18px;padding:6px 8px;border:2px solid #cdbba5;border-radius:8px}
+.cls-list{display:flex;flex-direction:column;gap:8px}
+.cls-item{display:flex;align-items:center;gap:10px;border:2px solid #e2d3bf;border-radius:12px;padding:8px 12px;flex-wrap:wrap}
+.cls-item .nm{font-weight:900;font-size:19px}
+.cls-item .meta{color:var(--muted);font-size:15px}
+.cls-item .acts{margin-left:auto;display:flex;gap:6px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--black);color:#fff;padding:10px 18px;border-radius:14px;font-size:18px;z-index:80;max-width:90%;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.welcome-intro{background:var(--sand);border-radius:12px;padding:10px 14px;font-size:17px}
+
+/* ===== 手機、直式平板 ===== */
+@media (max-width:900px){
+  .main{flex-direction:column}
+  .panel{position:absolute;left:0;right:0;bottom:0;width:100%;max-height:58%;border-left:none;border-top:3px solid #e2d3bf;border-radius:18px 18px 0 0;box-shadow:0 -6px 20px rgba(0,0,0,.2);z-index:10}
+  header.top h1{font-size:22px}
+  header.top .who{margin-left:0;text-align:left}
+  .btn .t{display:none}
+  .btn{padding:8px 12px}
+}
+
+/* ===== 列印頁面（螢幕預覽與列印共用） ===== */
+#print{display:none}
+.pg{position:relative;width:279mm;height:188mm;overflow:hidden;background:#fff;color:#1f1a17;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pg *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pg.list{height:auto;min-height:188mm;overflow:visible}
+.pg .ph{display:flex;align-items:flex-end;gap:14px;border-bottom:3px solid var(--black);padding-bottom:4px;margin-bottom:6px}
+.pg .ph .t{font-size:24px;font-weight:900;line-height:1.3}
+.pg .ph .s{font-size:14px;color:#444}
+.pg .ph .r{margin-left:auto;font-size:15px;text-align:right;line-height:1.4}
+.pg .pw{height:5px;margin-bottom:6px}
+.pg .treebox{width:100%;height:164mm;position:relative}
+.pg .treebox.cut{outline:1px dashed #999}
+.pg .treebox svg{width:100%;height:100%;display:block}
+.pg .tilemap{display:inline-grid;gap:2px;vertical-align:middle;margin-left:8px}
+.pg .tilemap i{width:12px;height:9px;background:#ddd;display:block}
+.pg .tilemap i.on{background:var(--red)}
+.roster{width:100%;border-collapse:collapse;font-size:14px}
+.roster th,.roster td{border:1px solid #888;padding:3px 6px;text-align:left}
+.roster th{background:#eee5d8}
+.roster tr{break-inside:avoid}
+/* 列印預覽視窗 */
+.popt{display:flex;flex-direction:column;gap:10px}
+.popt .grp{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.popt .grp>b{min-width:5.5em}
+.chip{border:2px solid #cdbba5;background:#fff;border-radius:999px;padding:6px 14px;font-weight:700;font-size:17px;min-height:44px}
+.chip.on{background:var(--black);border-color:var(--black);color:#fff}
+.popt select{font-size:17px;padding:6px 8px;border:2px solid #cdbba5;border-radius:10px;max-width:260px}
+.psum{background:var(--sand);border-radius:12px;padding:8px 14px;font-size:17px}
+.psum.warn{background:#fdecd8;border:2px solid #e8a35c}
+.pv-pages{display:flex;flex-wrap:wrap;gap:10px;background:#d9d2c8;padding:10px;border-radius:12px;max-height:40vh;overflow:auto;align-content:flex-start}
+.pv-pages .pg{zoom:.26;box-shadow:0 3px 12px rgba(0,0,0,.3);flex:none}
+.frame-warn{background:#fdecd8;border:2px solid #e8a35c;border-radius:12px;padding:8px 14px;font-size:16px}
+/* 找家人 */
+.finder{position:relative}
+.finder input{font-size:18px;padding:8px 12px;border:2px solid var(--line);border-radius:12px;width:150px;min-height:48px;background:#fff}
+.finder .res{position:absolute;top:52px;left:0;min-width:280px;max-height:360px;overflow:auto;background:#fff;border:2px solid var(--line);border-radius:12px;z-index:30;box-shadow:0 8px 20px rgba(0,0,0,.2)}
+.finder .res button{display:flex;gap:10px;width:100%;text-align:left;border:none;border-bottom:1px solid #eee;background:#fff;padding:8px 12px;font-size:17px;align-items:center}
+.finder .res button:hover{background:var(--sand)}
+.finder .res .k{color:var(--red);font-size:15px;min-width:4.5em}
+@media (max-width:900px){.finder input{width:130px}}
+@media (min-width:901px) and (max-width:1340px){.toolbar .btn.ghost .t{display:none}}
+@media (min-width:901px) and (max-width:1120px){.toolbar .zoomgrp .t{display:none}.finder input{width:110px}.toolbar{gap:5px}.toolbar .btn{padding:8px 9px}.zoomgrp .btn{min-width:44px}}
+@media print{
+  @page{size:A4 landscape;margin:9mm}
+  body{overflow:visible;background:#fff;height:auto}
+  body>*:not(#print){display:none!important}
+  #print{display:block!important;padding:0!important}
+  .pg{width:100%;margin:0!important;box-shadow:none!important;break-after:page;page-break-after:always}
+  .pg:last-child{break-after:auto;page-break-after:auto}
+}
+body.printdoc{overflow:auto;background:#d9d2c8;height:auto}
+body.printdoc #print{display:block;padding:14px}
+body.printdoc .pg{margin:0 auto 14px;box-shadow:0 3px 12px rgba(0,0,0,.3)}
+body.printdoc .pbar{position:sticky;top:0;background:var(--black);color:#fff;padding:10px 16px;display:flex;gap:12px;align-items:center;z-index:5}
+</style>
+</head>
+<body>
+<div class="weave"></div>
+<header class="top" id="top">
+  <div class="brand">
+    <span class="school">宜蘭縣立大同國中・泰雅族譜建置系統</span>
+    <h1>我的家族樹<small>qutux ramu'・同一個血源</small></h1>
+  </div>
+  <div class="who" id="who"></div>
+</header>
+<div class="toolbar" id="toolbar">
+  <button class="btn primary" id="bExport" title="把族譜存成檔案，交給老師">💾 <span class="t">匯出檔案</span></button>
+  <button class="btn" id="bImport" title="打開之前匯出的檔案">📂 <span class="t">開啟檔案</span></button>
+  <button class="btn" id="bPrint" title="A4 橫式列印">🖨️ <span class="t">列印</span></button>
+  <button class="btn" id="bTerms" title="族語稱謂對照表">🗣️ <span class="t">稱謂表</span></button>
+  <div class="finder"><input type="search" id="find" placeholder="🔍 找家人" autocomplete="off"><div class="res hidden" id="findRes"></div></div>
+  <span class="sep"></span>
+  <div class="zoomgrp">
+    <button class="btn" id="bOut" title="縮小">－</button>
+    <button class="btn" id="bIn" title="放大">＋</button>
+    <button class="btn" id="bFit" title="整棵樹放進畫面">⤢ <span class="t">全部</span></button>
+    <button class="btn" id="bMe" title="回到「我」">⌖ <span class="t">我</span></button>
+  </div>
+  <button class="btn ghost" id="bHelp" title="使用說明">❓ <span class="t">說明</span></button>
+  <button class="btn ghost" id="bTeacher" title="老師匯入全班的檔案">👩‍🏫 <span class="t">老師檢視</span></button>
+  <button class="btn ghost" id="bNew" title="清除這台裝置上存的資料">🧹 <span class="t">清除資料</span></button>
+  <input type="file" id="fileOne" accept=".json,application/json" class="hidden">
+  <input type="file" id="fileMany" accept=".json,application/json" multiple class="hidden">
+</div>
+<div class="main" id="main">
+  <div class="viewport" id="vp">
+    <div class="stage" id="stage"><svg id="lines"></svg><div id="cards"></div></div>
+    <div class="hint" id="hint">點一下卡片 → 加家人、改名字　｜　拖曳移動畫面　｜　兩指或滾輪縮放</div>
+    <div class="readonly-bar hidden" id="roBar"></div>
+  </div>
+  <aside class="panel hidden" id="panel"></aside>
+</div>
+<div id="print"></div>
+<div id="modalRoot"></div>
+
+<script>
+/* ===== 族譜核心邏輯（純函式，可單獨測試） ===== */
+const FT = (() => {
+  const TERM_DEFS = [
+    // key, 中文說明, 預設族語（賽考利克泰雅語）
+    ['father', '爸爸', "yaba'"],
+    ['mother', '媽媽', "yaya'"],
+    ['grandfather', '爺爺／外公', 'yutas'],
+    ['grandmother', '奶奶／外婆', 'yaki'],
+    ['ancestorM', '曾祖父以上（男）', 'yutas'],
+    ['ancestorF', '曾祖母以上（女）', 'yaki'],
+    ['uncle', '伯伯／叔叔／舅舅', 'mama'],
+    ['aunt', '姑姑／阿姨', 'yata'],
+    ['olderBrother', '哥哥', 'qbsuyan mlikuy'],
+    ['olderSister', '姊姊', 'qbsuyan kneril'],
+    ['youngerSibling', '弟弟／妹妹', "sswe'"],
+    ['child', '兒子／女兒', "laqi'"],
+    ['grandchild', '孫子女', ''],
+    ['spouse', '配偶', ''],
+    ['uncleInLaw', '伯母／嬸嬸／舅媽／姑丈／姨丈', ''],
+    ['cousin', '堂表兄弟姊妹', ''],
+    ['nibling', '姪子女／外甥', ''],
+    ['grandSibling', '叔公／姑婆／舅公／姨婆', ''],
+  ];
+  const DEFAULT_TERMS = Object.fromEntries(TERM_DEFS.map(d => [d[0], d[2]]));
+
+  let _seq = 0;
+  function newId() {
+    _seq++;
+    return 'p' + Date.now().toString(36) + _seq.toString(36) + Math.random().toString(36).slice(2, 5);
+  }
+
+  function makePerson(o = {}) {
+    return {
+      id: o.id || newId(),
+      given: o.given || '',        // 族名（個人名）
+      han: o.han || '',            // 漢名
+      gender: o.gender || '',      // 'M' | 'F' | ''
+      bo: o.bo == null ? null : o.bo, // 排行（家中第幾個孩子）
+      fullOverride: o.fullOverride || '', // 手動輸入的完整族名
+      fatherId: o.fatherId || null,
+      motherId: o.motherId || null,
+      spouses: o.spouses ? o.spouses.slice() : [],
+    };
+  }
+
+  function newTree(me) {
+    const p = makePerson(me);
+    return {
+      app: 'datong-family-tree', version: 1,
+      student: { cls: '', seat: '' },
+      meId: p.id,
+      people: { [p.id]: p },
+      terms: {},
+    };
+  }
+
+  /* ---------- 子連父名 ---------- */
+  function tribalName(p, people) {
+    if (!p) return '';
+    if (p.fullOverride && p.fullOverride.trim()) return p.fullOverride.trim();
+    const g = (p.given || '').trim();
+    if (!g) return '';
+    const f = p.fatherId ? people[p.fatherId] : null;
+    const fg = f && (f.given || '').trim();
+    return fg ? g + ' ' + fg : g;
+  }
+
+  /* ---------- 關係查詢 ---------- */
+  function childrenOf(id, people) {
+    return Object.values(people).filter(p => p.fatherId === id || p.motherId === id);
+  }
+  function parentsOf(p) { return [p.fatherId, p.motherId].filter(Boolean); }
+  function neighbors(id, people) {
+    const p = people[id]; const out = [];
+    if (!p) return out;
+    parentsOf(p).forEach(x => people[x] && out.push([x, 'P']));
+    childrenOf(id, people).forEach(c => out.push([c.id, 'C']));
+    p.spouses.forEach(s => people[s] && out.push([s, 'S']));
+    return out;
+  }
+  function siblingsOf(id, people) {
+    const p = people[id]; if (!p) return [];
+    const par = parentsOf(p);
+    if (!par.length) return [];
+    return Object.values(people).filter(q => q.id !== id &&
+      ((p.fatherId && q.fatherId === p.fatherId) || (p.motherId && q.motherId === p.motherId)));
+  }
+
+  /* ---------- 稱謂推算 ---------- */
+  // 以「我」為起點找最短路徑（血緣優先：配偶邊權重較高）
+  function paths(meId, people) {
+    const dist = { [meId]: 0 }, prev = {}, done = new Set();
+    const W = { P: 1, C: 1, S: 1.6 };
+    while (true) {
+      let u = null, best = Infinity;
+      for (const k in dist) if (!done.has(k) && dist[k] < best) { best = dist[k]; u = k; }
+      if (u == null) break;
+      done.add(u);
+      for (const [v, t] of neighbors(u, people)) {
+        const nd = dist[u] + W[t];
+        if (dist[v] == null || nd < dist[v] - 1e-9) { dist[v] = nd; prev[v] = [u, t]; }
+      }
+    }
+    const res = {};
+    for (const id in dist) {
+      const chain = [id]; let steps = '';
+      let cur = id;
+      while (prev[cur]) { steps = prev[cur][1] + steps; cur = prev[cur][0]; chain.unshift(cur); }
+      res[id] = { steps, chain };
+    }
+    return res;
+  }
+
+  function cmpBo(a, b) { // a 是否比 b 年長：true / false / null（不知道）
+    if (a == null || b == null || a.bo == null || b.bo == null || a.bo === b.bo) return null;
+    return a.bo < b.bo;
+  }
+
+  function kinOf(steps, chain, people, terms) {
+    const T = k => ((terms && terms[k] != null && terms[k] !== '') ? terms[k] : (terms && k in terms ? '' : DEFAULT_TERMS[k])) || '';
+    const P = i => people[chain[i]];
+    const me = P(0), x = P(chain.length - 1);
+    const g = x ? x.gender : '';
+    const pick = (m, f, u) => g === 'M' ? m : g === 'F' ? f : u;
+    const r = (zh, key) => ({ zh, term: key ? T(key) : '', key: key || '' });
+
+    if (steps === '') return r('我');
+    if (steps === 'P') return r(pick('爸爸', '媽媽', '父母'), g === 'F' ? 'mother' : g === 'M' ? 'father' : '');
+    if (/^P+$/.test(steps)) {
+      const n = steps.length;
+      const maternal = P(1) && P(1).gender === 'F';
+      const key = n === 2 ? pick('grandfather', 'grandmother', '') : pick('ancestorM', 'ancestorF', '');
+      if (n === 2) return r(maternal ? pick('外公', '外婆', '外祖父母') : pick('爺爺', '奶奶', '祖父母'), key);
+      if (n === 3) return r((maternal ? '外' : '') + pick('曾祖父', '曾祖母', '曾祖父母'), key);
+      if (n === 4) return r((maternal ? '外' : '') + pick('高祖父', '高祖母', '高祖父母'), key);
+      return r('祖先（往上第 ' + n + ' 代）', key);
+    }
+    if (steps === 'PC') {
+      const older = cmpBo(x, me);
+      if (older === true) return r(pick('哥哥', '姊姊', '兄姊'), pick('olderBrother', 'olderSister', ''));
+      if (older === false) return r(pick('弟弟', '妹妹', '弟妹'), 'youngerSibling');
+      return r(pick('兄弟', '姊妹', '手足'), '');
+    }
+    if (steps === 'PS') return r(pick('繼父', '繼母', '繼父母'));
+    if (steps === 'PPC') {
+      const par = P(1), paternal = par && par.gender === 'M';
+      if (paternal) {
+        if (g === 'F') return r('姑姑', 'aunt');
+        const o = cmpBo(x, par);
+        return r(o === true ? '伯伯' : o === false ? '叔叔' : '伯伯／叔叔', g === 'M' ? 'uncle' : '');
+      }
+      return r(pick('舅舅', '阿姨', '舅舅／阿姨'), pick('uncle', 'aunt', ''));
+    }
+    if (steps === 'PPCS') {
+      const par = P(1), blood = P(3), paternal = par && par.gender === 'M';
+      let zh;
+      if (paternal) {
+        if (blood && blood.gender === 'F') zh = '姑丈';
+        else { const o = cmpBo(blood, par); zh = o === true ? '伯母' : o === false ? '嬸嬸' : '伯母／嬸嬸'; }
+      } else zh = blood && blood.gender === 'F' ? '姨丈' : '舅媽';
+      return r(zh, 'uncleInLaw');
+    }
+    if (steps === 'PPCC') {
+      const par = P(1), mid = P(3);
+      const tang = par && par.gender === 'M' && mid && mid.gender === 'M';
+      return r((tang ? '堂' : '表') + pick('兄弟', '姊妹', '兄弟姊妹'), 'cousin');
+    }
+    if (steps === 'PPPC') {
+      const gp = P(2);
+      let zh;
+      if (gp && gp.gender === 'F') zh = pick('舅公', '姨婆', '舅公／姨婆');
+      else zh = pick('伯公／叔公', '姑婆', '伯叔公／姑婆');
+      return r(zh, 'grandSibling');
+    }
+    if (steps === 'C') return r(pick('兒子', '女兒', '孩子'), 'child');
+    if (steps === 'CC') {
+      const mid = P(1), outer = mid && mid.gender === 'F';
+      return r((outer ? '外' : '') + pick('孫子', '孫女', '孫子女'), 'grandchild');
+    }
+    if (steps === 'S') return r(pick('丈夫', '妻子', '配偶'), 'spouse');
+    if (steps === 'PCC') {
+      const sib = P(2), viaSister = sib && sib.gender === 'F';
+      return r(viaSister ? pick('外甥', '外甥女', '外甥') : pick('姪子', '姪女', '姪子女'), 'nibling');
+    }
+    if (steps === 'PCS') {
+      const sib = P(2), o = cmpBo(sib, me);
+      if (sib && sib.gender === 'M') return r(o === true ? '嫂嫂' : o === false ? '弟媳' : '兄弟的配偶');
+      if (sib && sib.gender === 'F') return r(o === true ? '姊夫' : o === false ? '妹夫' : '姊妹的配偶');
+      return r('手足的配偶');
+    }
+    if (steps === 'SP') return r(pick('配偶的爸爸', '配偶的媽媽', '配偶的父母'));
+    if (steps === 'CS') return r(pick('女婿', '媳婦', '孩子的配偶'));
+    return r('親戚');
+  }
+
+  function kinMap(tree) {
+    const ps = paths(tree.meId, tree.people);
+    const out = {};
+    for (const id in tree.people) {
+      const pth = ps[id];
+      out[id] = pth ? kinOf(pth.steps, pth.chain, tree.people, tree.terms) : { zh: '（未連上）', term: '', key: '' };
+    }
+    return out;
+  }
+
+  /* ---------- 新增家人 ---------- */
+  function sibGroup(anchorId, people) {
+    const a = people[anchorId];
+    const list = [a, ...siblingsOf(anchorId, people)];
+    return list;
+  }
+  function normalizeBo(list) {
+    const sorted = list.slice().sort((a, b) => {
+      const x = a.bo == null ? 1e9 : a.bo, y = b.bo == null ? 1e9 : b.bo;
+      return x - y;
+    });
+    sorted.forEach((p, i) => { p.bo = i + 1; });
+  }
+  function link(people, a, b) {
+    if (!a || !b || a === b) return;
+    if (!people[a].spouses.includes(b)) people[a].spouses.push(b);
+    if (!people[b].spouses.includes(a)) people[b].spouses.push(a);
+  }
+
+  // rel: father mother spouse son daughter olderBrother olderSister youngerBrother youngerSister
+  // 回傳 { id, created:[ids], note }
+  function addRelative(tree, anchorId, rel, opts = {}) {
+    const people = tree.people, a = people[anchorId];
+    if (!a) throw new Error('找不到這個人');
+    const created = []; let note = '';
+    const add = o => { const p = makePerson(o); people[p.id] = p; created.push(p.id); return p; };
+
+    if (rel === 'father' || rel === 'mother') {
+      const field = rel === 'father' ? 'fatherId' : 'motherId';
+      const other = rel === 'father' ? 'motherId' : 'fatherId';
+      if (a[field]) throw new Error(rel === 'father' ? '已經有爸爸了' : '已經有媽媽了');
+      const p = add({ gender: rel === 'father' ? 'M' : 'F' });
+      // 同一位另一半家長、還沒有這個家長的兄弟姊妹，一起接上
+      const otherParent = a[other];
+      const group = [a];
+      if (otherParent) Object.values(people).forEach(q => { if (q.id !== a.id && q[other] === otherParent && !q[field]) group.push(q); });
+      group.forEach(q => { q[field] = p.id; });
+      if (otherParent) link(people, p.id, otherParent);
+      if (group.length > 1) note = '兄弟姊妹也一起接上了';
+      return { id: p.id, created, note };
+    }
+    if (rel === 'spouse') {
+      const p = add({ gender: a.gender === 'M' ? 'F' : a.gender === 'F' ? 'M' : '' });
+      link(people, a.id, p.id);
+      return { id: p.id, created, note };
+    }
+    if (rel === 'son' || rel === 'daughter') {
+      if (!a.gender) throw new Error('請先設定這個人的性別，才知道他是爸爸還是媽媽');
+      const p = add({ gender: rel === 'son' ? 'M' : 'F' });
+      const selfField = a.gender === 'M' ? 'fatherId' : 'motherId';
+      const otherField = a.gender === 'M' ? 'motherId' : 'fatherId';
+      p[selfField] = a.id;
+      let op = opts.otherParentId;
+      if (op === undefined) op = a.spouses.length === 1 ? a.spouses[0] : null;
+      if (op && people[op]) p[otherField] = op;
+      const kids = childrenOf(a.id, people).filter(k => k.id !== p.id);
+      const max = kids.reduce((m, k) => Math.max(m, k.bo || 0), 0);
+      p.bo = max + 1;
+      return { id: p.id, created, note };
+    }
+    if (/^(older|younger)(Brother|Sister)$/.test(rel)) {
+      if (!a.fatherId && !a.motherId) {
+        const f = add({ gender: 'M' }), m = add({ gender: 'F' });
+        a.fatherId = f.id; a.motherId = m.id; link(people, f.id, m.id);
+        note = '兄弟姊妹要透過爸媽連起來，已先加上爸爸、媽媽的空白卡片';
+      }
+      const group = sibGroup(a.id, people);
+      normalizeBo(group);
+      const older = rel.startsWith('older');
+      const p = add({ gender: rel.endsWith('Brother') ? 'M' : 'F', fatherId: a.fatherId, motherId: a.motherId });
+      p.bo = a.bo + (older ? -0.5 : 0.5);
+      normalizeBo([...group, p]);
+      return { id: p.id, created, note };
+    }
+    throw new Error('不認得的關係：' + rel);
+  }
+
+  /* ---------- 刪除 ---------- */
+  function connectedFrom(startId, people, skipId) {
+    const seen = new Set([startId]); const q = [startId];
+    while (q.length) {
+      const u = q.shift();
+      for (const [v] of neighbors(u, people)) if (v !== skipId && !seen.has(v)) { seen.add(v); q.push(v); }
+    }
+    return seen;
+  }
+  // 預覽：刪掉 id 之後，會跟著被移除（不再和「我」相連）的人
+  function deletePreview(tree, id) {
+    if (id === tree.meId) return null;
+    const people = tree.people;
+    // 模擬刪除
+    const clone = {};
+    for (const k in people) if (k !== id) {
+      const p = people[k];
+      clone[k] = Object.assign({}, p, {
+        fatherId: p.fatherId === id ? null : p.fatherId,
+        motherId: p.motherId === id ? null : p.motherId,
+        spouses: p.spouses.filter(s => s !== id),
+      });
+    }
+    const keep = connectedFrom(tree.meId, clone);
+    return Object.keys(clone).filter(k => !keep.has(k));
+  }
+  function deletePerson(tree, id) {
+    const extra = deletePreview(tree, id);
+    if (extra == null) throw new Error('不能刪除「我」');
+    const gone = new Set([id, ...extra]);
+    for (const k of gone) delete tree.people[k];
+    for (const p of Object.values(tree.people)) {
+      if (gone.has(p.fatherId)) p.fatherId = null;
+      if (gone.has(p.motherId)) p.motherId = null;
+      p.spouses = p.spouses.filter(s => !gone.has(s));
+    }
+    return [...gone];
+  }
+
+  /* ---------- 排版 ---------- */
+  const DIM = { W: 224, H: 124, coupleGap: 30, blockGap: 60, rowGap: 120 };
+
+  function generations(tree) {
+    const gen = { [tree.meId]: 0 }; const q = [tree.meId];
+    while (q.length) {
+      const u = q.shift();
+      for (const [v, t] of neighbors(u, tree.people)) {
+        if (gen[v] != null) continue;
+        gen[v] = gen[u] + (t === 'P' ? -1 : t === 'C' ? 1 : 0);
+        q.push(v);
+      }
+    }
+    // 沒連上的人放在「我」這一代
+    for (const id in tree.people) if (gen[id] == null) gen[id] = 0;
+    return gen;
+  }
+
+  // 等差保序回歸（Pool Adjacent Violators）
+  function isotonic(t, w) {
+    const blocks = [];
+    for (let i = 0; i < t.length; i++) {
+      blocks.push({ v: t[i], w: w[i], n: 1 });
+      while (blocks.length > 1 && blocks[blocks.length - 2].v > blocks[blocks.length - 1].v) {
+        const b = blocks.pop(), a = blocks.pop();
+        const ww = a.w + b.w;
+        blocks.push({ v: (a.v * a.w + b.v * b.w) / ww, w: ww, n: a.n + b.n });
+      }
+    }
+    const out = [];
+    blocks.forEach(b => { for (let i = 0; i < b.n; i++) out.push(b.v); });
+    return out;
+  }
+
+  // 只取一部分人（列印分支用）：關係線只保留在這群人之內
+  function subsetPeople(people, only) {
+    const out = {};
+    for (const id of only) {
+      const p = people[id]; if (!p) continue;
+      out[id] = Object.assign({}, p, {
+        fatherId: only.has(p.fatherId) ? p.fatherId : null,
+        motherId: only.has(p.motherId) ? p.motherId : null,
+        spouses: p.spouses.filter(s => only.has(s)),
+      });
+    }
+    return out;
+  }
+
+  function layout(tree, opts = {}) {
+    const D = DIM;
+    const fullGen = generations(tree);
+    const people = opts.only ? subsetPeople(tree.people, opts.only) : tree.people;
+    const gen = {}; Object.keys(people).forEach(i => gen[i] = fullGen[i]);
+    const ids = Object.keys(people);
+    const kidsIdx = {}; ids.forEach(i => kidsIdx[i] = []);
+    ids.forEach(i => { const p = people[i]; [p.fatherId, p.motherId].forEach(x => { if (x && kidsIdx[x]) kidsIdx[x].push(i); }); });
+    const nb = id => { const p = people[id]; const out = [];
+      [p.fatherId, p.motherId].forEach(x => x && out.push([x, 'P']));
+      kidsIdx[id].forEach(c => out.push([c, 'C']));
+      p.spouses.forEach(s => out.push([s, 'S'])); return out; };
+    const startId = people[tree.meId] ? tree.meId : ids[0];
+    // 夫妻併成一個區塊（同一代）
+    const parent = {}; ids.forEach(i => parent[i] = i);
+    const find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
+    ids.forEach(i => people[i].spouses.forEach(s => { if (people[s] && gen[s] === gen[i]) parent[find(i)] = find(s); }));
+    const groups = {};
+    ids.forEach(i => { const r = find(i); (groups[r] = groups[r] || []).push(i); });
+    const blocks = Object.values(groups).map(members => {
+      let ordered = members;
+      if (members.length === 2) {
+        const [x, y] = members;
+        ordered = (people[x].gender === 'F' && people[y].gender !== 'F') ? [y, x] : [x, y];
+      } else if (members.length > 2) {
+        // 一人多位配偶：中心人物放中間
+        const hub = members.slice().sort((a, b) => people[b].spouses.length - people[a].spouses.length)[0];
+        const others = members.filter(m => m !== hub);
+        const half = Math.ceil(others.length / 2);
+        ordered = [...others.slice(0, half), hub, ...others.slice(half)];
+      }
+      return { members: ordered, gen: gen[members[0]], w: ordered.length * D.W + (ordered.length - 1) * D.coupleGap, x: 0 };
+    });
+    const blockOf = {}; blocks.forEach(b => b.members.forEach(m => blockOf[m] = b));
+    const gens = [...new Set(blocks.map(b => b.gen))].sort((a, b) => a - b);
+    const rows = {}; gens.forEach(g => rows[g] = []);
+    // 初始順序：從「我」出發的探索順序
+    const order = {}; let k = 0;
+    const seen = new Set([startId]); const q = [startId];
+    while (q.length) { const u = q.shift(); order[u] = k++; for (const [v] of nb(u)) if (!seen.has(v)) { seen.add(v); q.push(v); } }
+    ids.forEach(i => { if (order[i] == null) order[i] = k++; });
+    blocks.forEach(b => rows[b.gen].push(b));
+    gens.forEach(g => rows[g].sort((a, b) => Math.min(...a.members.map(m => order[m])) - Math.min(...b.members.map(m => order[m]))));
+
+    const memberX = id => { const b = blockOf[id]; const i = b.members.indexOf(id); return b.x + i * (D.W + D.coupleGap) + D.W / 2; };
+    const center = b => b.x + b.w / 2;
+    const compact = row => { let x = 0; row.forEach(b => { b.x = x; x += b.w + D.blockGap; }); };
+    gens.forEach(g => compact(rows[g]));
+
+    const parentAnchor = id => {
+      const p = people[id]; const ps = parentsOf(p).filter(x => people[x]);
+      if (!ps.length) return null;
+      return ps.reduce((s, x) => s + memberX(x), 0) / ps.length;
+    };
+    const childAnchor = b => {
+      const xs = [];
+      b.members.forEach(m => kidsIdx[m].forEach(c => { if (gen[c] === b.gen + 1) xs.push(memberX(c)); }));
+      return xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null;
+    };
+    const keyDown = b => {
+      const xs = b.members.map(parentAnchor).filter(v => v != null);
+      return xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : center(b);
+    };
+    const boOf = b => Math.min(...b.members.map(m => people[m].bo == null ? 99 : people[m].bo));
+    const place = (row, desired, weight) => {
+      let off = 0; const o = [];
+      row.forEach(b => { o.push(off); off += b.w + D.blockGap; });
+      const t = row.map((b, i) => desired[i] - b.w / 2 - o[i]);
+      const y = isotonic(t, weight);
+      row.forEach((b, i) => { b.x = y[i] + o[i]; });
+    };
+
+    // 排序：上下來回的重心法
+    for (let it = 0; it < 6; it++) {
+      for (let gi = 1; gi < gens.length; gi++) {
+        const row = rows[gens[gi]];
+        const keyed = row.map((b, i) => ({ b, k: keyDown(b), i, bo: boOf(b) }));
+        keyed.sort((p, q) => (p.k - q.k) || (p.bo - q.bo) || (p.i - q.i));
+        rows[gens[gi]] = keyed.map(z => z.b); compact(rows[gens[gi]]);
+      }
+      for (let gi = gens.length - 2; gi >= 0; gi--) {
+        const row = rows[gens[gi]];
+        const keyed = row.map((b, i) => { const c = childAnchor(b); return { b, k: c == null ? center(b) : c, i }; });
+        keyed.sort((p, q) => (p.k - q.k) || (p.i - q.i));
+        rows[gens[gi]] = keyed.map(z => z.b); compact(rows[gens[gi]]);
+      }
+    }
+    // 位置：讓孩子在父母正下方、父母在孩子正上方
+    for (let it = 0; it < 12; it++) {
+      for (let gi = 1; gi < gens.length; gi++) {
+        const row = rows[gens[gi]];
+        const des = [], wt = [];
+        row.forEach(b => {
+          const xs = b.members.map(parentAnchor).filter(v => v != null);
+          if (xs.length) {
+            // 單一成員有父母：讓該成員（而非整個區塊）對準
+            const m = b.members.find(mm => parentAnchor(mm) != null);
+            const shift = memberX(m) - center(b);
+            des.push(parentAnchor(m) - shift); wt.push(1);
+          } else { des.push(center(b)); wt.push(0.05); }
+        });
+        place(row, des, wt);
+      }
+      for (let gi = gens.length - 2; gi >= 0; gi--) {
+        const row = rows[gens[gi]];
+        const des = [], wt = [];
+        row.forEach(b => { const c = childAnchor(b); if (c != null) { des.push(c); wt.push(1); } else { des.push(center(b)); wt.push(0.05); } });
+        place(row, des, wt);
+      }
+    }
+    // 正規化
+    let minX = Infinity, maxX = -Infinity;
+    blocks.forEach(b => { minX = Math.min(minX, b.x); maxX = Math.max(maxX, b.x + b.w); });
+    blocks.forEach(b => { b.x -= minX; });
+    const g0 = gens[0];
+    const pos = {};
+    blocks.forEach(b => b.members.forEach((m, i) => {
+      pos[m] = { x: b.x + i * (D.W + D.coupleGap), y: (b.gen - g0) * (D.H + D.rowGap), gen: b.gen };
+    }));
+
+    // 連線
+    const lines = [];
+    const doneCouple = new Set();
+    ids.forEach(i => people[i].spouses.forEach(s => {
+      const key = [i, s].sort().join('|');
+      if (doneCouple.has(key) || !pos[s]) return; doneCouple.add(key);
+      const a = pos[i], b = pos[s];
+      if (a.y !== b.y) return;
+      const [L, R] = a.x < b.x ? [a, b] : [b, a];
+      lines.push({ type: 'marry', x1: L.x + D.W, y1: L.y + D.H / 2, x2: R.x, y2: R.y + D.H / 2, adjacent: R.x - L.x - D.W <= D.coupleGap + 1 });
+    }));
+    const units = {};
+    ids.forEach(i => {
+      const p = people[i]; if (!p.fatherId && !p.motherId) return;
+      const key = (p.fatherId || '') + '|' + (p.motherId || '');
+      (units[key] = units[key] || []).push(i);
+    });
+    const unitList = Object.entries(units);
+    const byRow = {};
+    unitList.forEach(([key, kids]) => {
+      const ps = key.split('|').filter(Boolean).filter(x => pos[x]);
+      if (!ps.length) return;
+      const top = Math.max(...ps.map(x => pos[x].y));
+      const ax = ps.reduce((s, x) => s + pos[x].x + D.W / 2, 0) / ps.length;
+      const startY = ps.length === 2 && pos[ps[0]].y === pos[ps[1]].y ? top + D.H / 2 : top + D.H;
+      const kx = kids.map(c => pos[c].x + D.W / 2);
+      const ky = Math.min(...kids.map(c => pos[c].y));
+      (byRow[ky] = byRow[ky] || []).push({ ax, startY, kx, ky, kids });
+    });
+    Object.values(byRow).forEach(list => {
+      list.sort((a, b) => a.ax - b.ax);
+      list.forEach((u, i) => {
+        const n = list.length;
+        const busY = u.ky - D.rowGap / 2 + (n > 1 ? (i - (n - 1) / 2) * Math.min(14, (D.rowGap - 40) / n) : 0);
+        lines.push({ type: 'family', ax: u.ax, startY: u.startY, busY, kx: u.kx, ky: u.ky, kids: u.kids });
+      });
+    });
+    const height = (gens[gens.length - 1] - g0) * (D.H + D.rowGap) + D.H;
+    return { pos, lines, width: maxX - minX, height, dim: D, ids };
+  }
+
+  /* ---------- 列印分支 ---------- */
+  // kind: 'all' | 'paternal' | 'maternal' | 'desc'（某人的後代，rootId）
+  function branchIds(tree, kind, rootId) {
+    const people = tree.people, all = new Set(Object.keys(people));
+    if (kind === 'all') return all;
+    if (kind === 'desc') {
+      const out = new Set(); const q = [rootId];
+      const kids = {}; Object.values(people).forEach(p => [p.fatherId, p.motherId].forEach(x => { if (x) (kids[x] = kids[x] || []).push(p.id); }));
+      while (q.length) {
+        const u = q.shift(); if (!people[u] || out.has(u)) continue; out.add(u);
+        (kids[u] || []).forEach(c => q.push(c));
+      }
+      // 加上配偶（不再往下展開配偶那邊的親戚）
+      [...out].forEach(u => people[u].spouses.forEach(s => out.add(s)));
+      return out;
+    }
+    const me = people[tree.meId];
+    const side = kind === 'paternal' ? me.fatherId : me.motherId;
+    const other = kind === 'paternal' ? me.motherId : me.fatherId;
+    if (!side) return new Set([tree.meId]);
+    const ps = paths(tree.meId, people);
+    const out = new Set();
+    for (const id in ps) {
+      const c = ps[id].chain;
+      if (c.length === 1) out.add(id);                       // 我
+      else if (c[1] === side) out.add(id);                   // 經過這一邊的家長
+      else if (c[1] !== other) out.add(id);                  // 我的配偶、孩子
+    }
+    // 兄弟姊妹（可能先經過另一位家長才找到）、另一位家長本人
+    siblingsOf(tree.meId, people).forEach(s => out.add(s.id));
+    if (other) out.add(other);
+    return out;
+  }
+
+  /* ---------- 檔案 ---------- */
+  function validate(data) {
+    if (!data || data.app !== 'datong-family-tree' || !data.people || !data.meId || !data.people[data.meId])
+      throw new Error('這不是族譜系統匯出的檔案');
+    for (const id in data.people) {
+      const p = data.people[id];
+      data.people[id] = makePerson(Object.assign({}, p, { id }));
+    }
+    for (const p of Object.values(data.people)) {
+      if (p.fatherId && !data.people[p.fatherId]) p.fatherId = null;
+      if (p.motherId && !data.people[p.motherId]) p.motherId = null;
+      p.spouses = p.spouses.filter(s => data.people[s] && s !== p.id);
+    }
+    data.student = data.student || { cls: '', seat: '' };
+    data.terms = data.terms || {};
+    return data;
+  }
+
+  return { TERM_DEFS, DEFAULT_TERMS, makePerson, newTree, tribalName, childrenOf, siblingsOf, kinMap, addRelative,
+    deletePreview, deletePerson, layout, generations, validate, isotonic, DIM, paths, branchIds, subsetPeople };
+})();
+if (typeof module !== 'undefined') module.exports = FT;
+
+</script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const KEY_MINE = 'datongFT.mine.v1', KEY_CLASS = 'datongFT.class.v1';
+
+/* ---------- 儲存 ---------- */
+let canStore = true;
+function load(key) { try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : null; } catch (e) { canStore = false; return null; } }
+function store(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); return true; } catch (e) { canStore = false; return false; } }
+
+let mine = null;        // 學生自己的族譜
+let tree = null;        // 目前畫面上的族譜（自己的，或老師正在看的）
+let viewing = null;     // 老師檢視中的項目
+let selId = null;
+let view = { s: 1, x: 40, y: 40 };
+let lastLayout = null;
+let savedAt = null;
+
+function saveMine() {
+  if (!mine) return;
+  mine.updatedAt = new Date().toISOString();
+  const ok = store(KEY_MINE, mine);
+  savedAt = ok ? new Date() : null;
+  renderWho();
+}
+
+/* ---------- 共用小工具 ---------- */
+function toast(msg, ms = 2600) {
+  document.querySelectorAll('.toast').forEach(x => x.remove());
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), ms);
+}
+function modal(title, bodyHTML, buttons, opts = {}) {
+  const root = $('#modalRoot');
+  const bg = document.createElement('div'); bg.className = 'modal-bg';
+  bg.innerHTML = `<div class="modal" style="${opts.wide ? 'max-width:860px' : ''}"><div class="mh"><h3>${title}</h3></div><div class="mb">${bodyHTML}</div><div class="mf"></div></div>`;
+  const mf = bg.querySelector('.mf');
+  const close = () => bg.remove();
+  buttons.forEach(b => {
+    const el = document.createElement('button'); el.className = 'btn ' + (b.cls || ''); el.innerHTML = b.label;
+    el.onclick = () => { const r = b.onClick ? b.onClick(bg) : undefined; if (r !== false) close(); };
+    mf.appendChild(el);
+  });
+  if (!opts.locked) bg.addEventListener('click', e => { if (e.target === bg) close(); });
+  root.appendChild(bg);
+  return { el: bg, close };
+}
+function confirmBox(title, html, okLabel, onOk, danger) {
+  modal(title, html, [{ label: '取消' }, { label: okLabel, cls: danger ? 'primary' : 'dark', onClick: onOk }]);
+}
+const GENDER = { M: '男', F: '女' };
+function displayName(p, people) { return FT.tribalName(p, people) || p.han || ''; }
+function isBlank(p) { return !p.given && !p.han && !p.fullOverride; }
+function today() { const d = new Date(); return d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0'); }
+
+/* ---------- 頁首 ---------- */
+function renderWho() {
+  if (!tree) { $('#who').innerHTML = ''; return; }
+  const me = tree.people[tree.meId];
+  const st = tree.student || {};
+  const nm = displayName(me, tree.people) || '（未填名字）';
+  const cnt = Object.keys(tree.people).length;
+  let save = '';
+  if (!viewing) save = canStore
+    ? `<div class="save-state">✓ 已自動存在這台平板${savedAt ? '（' + savedAt.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) + '）' : ''}</div>`
+    : `<div class="save-state warn">⚠ 這台裝置不能自動存檔，請記得「匯出檔案」</div>`;
+  $('#who').innerHTML = `<div>${esc(st.cls || '')}${st.cls ? ' 班 ' : ''}${st.seat ? esc(st.seat) + ' 號　' : ''}<b>${esc(nm)}</b>${me.han && FT.tribalName(me, tree.people) ? '（' + esc(me.han) + '）' : ''}　共 ${cnt} 人</div>${save}`;
+}
+
+/* ---------- 人物小圖示（原創 SVG） ---------- */
+function ageOf(gen) { return gen <= -2 ? 'elder' : gen === -1 ? 'adult' : 'young'; }
+function avatarSVG(g, age) {
+  const bg = g === 'M' ? '#dbe5ec' : g === 'F' ? '#f6ddd6' : '#ece4d8';
+  const shirt = g === 'M' ? '#2f4858' : g === 'F' ? '#a8231c' : '#8a5a3b';
+  const hair = age === 'elder' ? '#cfcac4' : '#2b2220';
+  const skin = '#f0c8a0', young = age === 'young';
+  const r = young ? 14.5 : 13.2, cy = young ? 29 : 28;
+  let s = `<rect width="60" height="60" fill="${bg}"/>`;
+  if (g === 'F' && age !== 'elder') s += `<path d="M15.5 ${cy} Q15 ${cy - 17} 30 ${cy - 17} Q45 ${cy - 17} 44.5 ${cy} L46 ${cy + 17} Q30 ${cy + 21} 14 ${cy + 17} Z" fill="${hair}"/>`;
+  if (g === 'F' && young) s += `<circle cx="13.5" cy="${cy - 2}" r="4.2" fill="${hair}"/><circle cx="46.5" cy="${cy - 2}" r="4.2" fill="${hair}"/>`;
+  s += `<path d="M7 62 Q9 44.5 30 44.5 Q51 44.5 53 62 Z" fill="${shirt}"/>`;
+  // 菱形織紋的領口
+  s += `<rect x="13" y="51" width="34" height="4.6" fill="#fff"/>`;
+  for (let x = 16; x <= 44; x += 5.6) s += `<path d="M${x} 53.3 l2.3 -2.1 l2.3 2.1 l-2.3 2.1z" fill="${x % 2 < 1 ? '#a8231c' : '#1f1a17'}"/>`;
+  s += `<rect x="26.5" y="${cy + 9}" width="7" height="${44.5 - cy - 8}" fill="${skin}"/>`;
+  s += `<circle cx="30" cy="${cy}" r="${r}" fill="${skin}"/>`;
+  if (g === 'M' && age === 'elder') s += `<path d="M${30 - r} ${cy + 1} Q${30 - r} ${cy - 9} ${30 - r + 5} ${cy - 11} L${30 - r + 5} ${cy - 2} Z" fill="${hair}"/><path d="M${30 + r} ${cy + 1} Q${30 + r} ${cy - 9} ${30 + r - 5} ${cy - 11} L${30 + r - 5} ${cy - 2} Z" fill="${hair}"/>`;
+  else if (g === 'F' && age === 'elder') s += `<circle cx="30" cy="${cy - r - 2}" r="5.5" fill="${hair}"/><path d="M${30 - r - .5} ${cy} Q${30 - r} ${cy - r - 1} 30 ${cy - r - 1} Q${30 + r} ${cy - r - 1} ${30 + r + .5} ${cy} Q${30 + r - 3} ${cy - 8} 30 ${cy - 8} Q${30 - r + 3} ${cy - 8} ${30 - r - .5} ${cy} Z" fill="${hair}"/>`;
+  else if (g === 'F') s += `<path d="M${30 - r - .5} ${cy + 1} Q${30 - r} ${cy - r - 1.5} 30 ${cy - r - 1.5} Q${30 + r} ${cy - r - 1.5} ${30 + r + .5} ${cy + 1} Q${30 + r - 2} ${cy - 7} 33 ${cy - 8} Q27 ${cy - 5} ${30 - r - .5} ${cy + 1} Z" fill="${hair}"/>`;
+  else s += `<path d="M${30 - r - .3} ${cy - 1} Q${30 - r} ${cy - r - 2} 30 ${cy - r - 2} Q${30 + r} ${cy - r - 2} ${30 + r + .3} ${cy - 1} Q${30 + r - 2} ${cy - 8} 30 ${cy - 7.5} Q${30 - r + 3} ${cy - 8} ${30 - r - .3} ${cy - 1} Z" fill="${hair}"/>`;
+  // 臉
+  if (age === 'elder') s += `<path d="M23.6 ${cy} q2 -2 4 0 M32.4 ${cy} q2 -2 4 0" stroke="#3a2a22" stroke-width="1.5" fill="none" stroke-linecap="round"/>`;
+  else s += `<circle cx="25.4" cy="${cy}" r="1.7" fill="#2b2220"/><circle cx="34.6" cy="${cy}" r="1.7" fill="#2b2220"/>`;
+  s += `<path d="M25.8 ${cy + 5} Q30 ${cy + 8.5} 34.2 ${cy + 5}" stroke="#8a3b2a" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+  if (g === 'F' || young) s += `<circle cx="21.8" cy="${cy + 4}" r="2.2" fill="#e8907c" opacity=".45"/><circle cx="38.2" cy="${cy + 4}" r="2.2" fill="#e8907c" opacity=".45"/>`;
+  return s;
+}
+
+/* ---------- 樹狀圖 ---------- */
+function cardHTML(p, kin, pos, t) {
+  const tn = FT.tribalName(p, t.people);
+  const cls = ['card', p.gender || '', p.id === t.meId ? 'me' : '', isBlank(p) ? 'blank' : '', p.id === selId ? 'sel' : ''].join(' ');
+  return `<div class="${cls}" data-id="${p.id}" style="left:${pos.x}px;top:${pos.y}px">
+    <div class="kin"><span>${esc(kin.zh)}</span>${kin.term ? `<span class="term">${esc(kin.term)}</span>` : ''}</div>
+    <div class="cb"><div class="av"><svg viewBox="0 0 60 60">${avatarSVG(p.gender, ageOf(pos.gen))}</svg></div>
+    <div class="tx"><div class="tn">${tn ? esc(tn) : '<span class="empty">（族名未填）</span>'}</div>
+    <div class="hn">${p.han ? esc(p.han) : '<span class="empty">漢名未填</span>'}</div></div></div>
+    ${p.gender ? `<span class="g">${GENDER[p.gender]}</span>` : ''}
+  </div>`;
+}
+function linesSVG(L) {
+  let s = '';
+  L.lines.forEach(l => {
+    if (l.type === 'marry') {
+      s += `<line x1="${l.x1}" y1="${l.y1 - 3}" x2="${l.x2}" y2="${l.y2 - 3}" stroke="#a8231c" stroke-width="3" ${l.adjacent ? '' : 'stroke-dasharray="8 6"'}/>`;
+      s += `<line x1="${l.x1}" y1="${l.y1 + 3}" x2="${l.x2}" y2="${l.y2 + 3}" stroke="#a8231c" stroke-width="3" ${l.adjacent ? '' : 'stroke-dasharray="8 6"'}/>`;
+    } else {
+      const xs = [l.ax, ...l.kx];
+      s += `<path d="M${l.ax} ${l.startY} V${l.busY} M${Math.min(...xs)} ${l.busY} H${Math.max(...xs)} ${l.kx.map(x => `M${x} ${l.busY} V${l.ky}`).join(' ')}" fill="none" stroke="#5b4a3f" stroke-width="2.6" stroke-linejoin="round"/>`;
+    }
+  });
+  return s;
+}
+// 結構沒變（只是改名字）就沿用上一次的排版，打字比較順
+const layoutCache = { key: '', L: null };
+function structKey(t) {
+  return t.meId + '#' + Object.values(t.people).map(p => [p.id, p.fatherId, p.motherId, p.spouses.join(','), p.bo, p.gender].join(':')).join('|');
+}
+function getLayout(t) {
+  const k = structKey(t);
+  if (layoutCache.key !== k) { layoutCache.key = k; layoutCache.L = FT.layout(t); }
+  return layoutCache.L;
+}
+function buildTree(container, svg, t) {
+  const L = getLayout(t), K = FT.kinMap(t);
+  container.innerHTML = Object.values(t.people).map(p => cardHTML(p, K[p.id], L.pos[p.id], t)).join('');
+  svg.setAttribute('width', L.width); svg.setAttribute('height', L.height);
+  svg.innerHTML = linesSVG(L);
+  return L;
+}
+function renderTree() {
+  if (!tree) return;
+  lastLayout = buildTree($('#cards'), $('#lines'), tree);
+  applyView();
+  renderWho();
+}
+function applyView() { $('#stage').style.transform = `translate(${view.x}px,${view.y}px) scale(${view.s})`; }
+function fitView() {
+  if (!lastLayout) return;
+  const vp = $('#vp').getBoundingClientRect();
+  const pad = 40;
+  const s = Math.min(1.1, (vp.width - pad * 2) / Math.max(lastLayout.width, 1), (vp.height - pad * 2) / Math.max(lastLayout.height, 1));
+  view.s = Math.max(0.05, s);
+  view.x = (vp.width - lastLayout.width * view.s) / 2;
+  view.y = (vp.height - lastLayout.height * view.s) / 2;
+  applyView();
+}
+function startView() {
+  fitView();
+  if (view.s < 0.4 && tree) { focusPerson(tree.meId, 0.75); toast('家族人數很多，先幫你停在「我」。按「⤢ 全部」可以看整棵樹，或用「🔍 找家人」', 5000); }
+}
+function focusPerson(id, s) {
+  if (!lastLayout || !lastLayout.pos[id]) return;
+  const vp = $('#vp').getBoundingClientRect();
+  if (s) view.s = s;
+  const p = lastLayout.pos[id], D = lastLayout.dim;
+  const panelOpen = !$('#panel').classList.contains('hidden');
+  const narrow = window.innerWidth <= 900;
+  const h = narrow && panelOpen ? vp.height * 0.42 : vp.height;
+  view.x = vp.width / 2 - (p.x + D.W / 2) * view.s;
+  view.y = h / 2 - (p.y + D.H / 2) * view.s;
+  applyView();
+}
+function ensureVisible(id) {
+  if (!lastLayout || !lastLayout.pos[id]) return;
+  const vp = $('#vp').getBoundingClientRect(), p = lastLayout.pos[id], D = lastLayout.dim;
+  const narrow = window.innerWidth <= 900;
+  const bottom = narrow && !$('#panel').classList.contains('hidden') ? vp.height * 0.42 : vp.height;
+  const x1 = view.x + p.x * view.s, y1 = view.y + p.y * view.s, x2 = x1 + D.W * view.s, y2 = y1 + D.H * view.s;
+  if (x1 < 10 || y1 < 10 || x2 > vp.width - 10 || y2 > bottom - 10) focusPerson(id);
+}
+function zoomAt(f, cx, cy) {
+  const ns = Math.min(2.5, Math.max(0.05, view.s * f));
+  view.x = cx - (cx - view.x) * ns / view.s; view.y = cy - (cy - view.y) * ns / view.s; view.s = ns; applyView();
+}
+
+/* ---------- 拖曳、縮放、點選 ---------- */
+(function interactions() {
+  const vp = $('#vp'); const pts = new Map(); let start = null, moved = false, pinch = null;
+  vp.addEventListener('pointerdown', e => {
+    try { vp.setPointerCapture(e.pointerId); } catch (err) {}
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 1) { start = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, target: e.target }; moved = false; }
+    if (pts.size === 2) {
+      const [a, b] = [...pts.values()];
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), s: view.s, vx: view.x, vy: view.y, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
+      moved = true;
+    }
+  });
+  vp.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2 && pinch) {
+      const [a, b] = [...pts.values()]; const r = vp.getBoundingClientRect();
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      const ns = Math.min(2.5, Math.max(0.05, pinch.s * d / pinch.d));
+      const cx = pinch.cx - r.left, cy = pinch.cy - r.top;
+      const mx = (a.x + b.x) / 2 - r.left, my = (a.y + b.y) / 2 - r.top;
+      view.x = mx - (cx - pinch.vx) * ns / pinch.s; view.y = my - (cy - pinch.vy) * ns / pinch.s; view.s = ns; applyView();
+      return;
+    }
+    if (start && pts.size === 1) {
+      const dx = e.clientX - start.x, dy = e.clientY - start.y;
+      if (Math.abs(dx) + Math.abs(dy) > 6) { moved = true; vp.classList.add('dragging'); }
+      if (moved) { view.x = start.vx + dx; view.y = start.vy + dy; applyView(); }
+    }
+  });
+  const end = e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if (pts.size < 2) pinch = null;
+    if (pts.size === 0) {
+      vp.classList.remove('dragging');
+      if (start && !moved) {
+        const card = start.target.closest && start.target.closest('.card');
+        if (card) select(card.dataset.id); else if (start.target.closest && !start.target.closest('.readonly-bar')) closePanel();
+      }
+      start = null;
+    }
+  };
+  vp.addEventListener('pointerup', end); vp.addEventListener('pointercancel', end);
+  vp.addEventListener('wheel', e => {
+    e.preventDefault(); const r = vp.getBoundingClientRect();
+    zoomAt(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+})();
+
+/* ---------- 編輯面板 ---------- */
+const ADD_BTNS = [
+  ['father', '＋爸爸'], ['mother', '＋媽媽'], ['spouse', '＋配偶'],
+  ['olderBrother', '＋哥哥'], ['olderSister', '＋姊姊'], ['youngerBrother', '＋弟弟'],
+  ['youngerSister', '＋妹妹'], ['son', '＋兒子'], ['daughter', '＋女兒'],
+];
+function select(id) {
+  selId = id;
+  document.querySelectorAll('.card.sel').forEach(c => c.classList.remove('sel'));
+  const c = document.querySelector(`.card[data-id="${id}"]`); if (c) c.classList.add('sel');
+  renderPanel();
+  ensureVisible(id);
+}
+function closePanel() {
+  selId = null; $('#panel').classList.add('hidden');
+  document.querySelectorAll('.card.sel').forEach(c => c.classList.remove('sel'));
+}
+function renderPanel(focusName) {
+  const panel = $('#panel');
+  const p = tree && tree.people[selId];
+  if (!p) { closePanel(); return; }
+  panel.classList.remove('hidden');
+  const K = FT.kinMap(tree)[p.id];
+  const ro = !!viewing;
+  const father = p.fatherId ? tree.people[p.fatherId] : null;
+  const hasParents = !!(p.fatherId || p.motherId);
+  const fg = father && father.given ? father.given : '';
+  const dis = ro ? 'disabled' : '';
+  panel.innerHTML = `
+    <div class="phead"><h2><span class="k">${esc(K.zh)}${K.term ? '・' + esc(K.term) : ''}</span>${esc(displayName(p, tree.people) || '（還沒填名字）')}</h2><button class="btn small" id="pClose">✕ 關閉</button></div>
+    <div class="field">
+      <label for="fGiven">族名（只填自己的名字）</label>
+      <input type="text" id="fGiven" value="${esc(p.given)}" placeholder="例如：Sayun、Watan" autocomplete="off" autocapitalize="words" ${dis} ${p.fullOverride ? 'disabled' : ''}>
+      <div class="preview" id="pv"></div>
+    </div>
+    <div class="duo">
+      <div class="field">
+        <label for="fHan">漢名</label>
+        <input type="text" id="fHan" value="${esc(p.han)}" placeholder="例如：林小芸" autocomplete="off" ${dis}>
+      </div>
+      <div class="field">
+        <label>性別</label>
+        <div class="seg"><button class="M ${p.gender === 'M' ? 'on' : ''}" data-g="M" ${dis}>男</button><button class="F ${p.gender === 'F' ? 'on' : ''}" data-g="F" ${dis}>女</button></div>
+      </div>
+    </div>
+    ${ro ? '' : `<div class="sect">加家人（加在「${esc(displayName(p, tree.people) || K.zh)}」旁邊）</div>
+    <div class="addgrid">${ADD_BTNS.map(([r, l]) => `<button data-rel="${r}" ${(r === 'father' && p.fatherId) || (r === 'mother' && p.motherId) ? 'disabled' : ''}>${l}</button>`).join('')}</div>`}
+    <details class="more" ${p.fullOverride ? 'open' : ''}><summary>更多設定（自己打完整族名${hasParents ? '、排行' : ''}）</summary>
+      <label class="check"><input type="checkbox" id="fOv" ${p.fullOverride ? 'checked' : ''} ${dis}> 自己打完整的族名（家裡的寫法不一樣時）</label>
+      <div class="field ${p.fullOverride ? '' : 'hidden'}" id="ovWrap">
+        <label for="fFull">完整族名</label>
+        <input type="text" id="fFull" value="${esc(p.fullOverride)}" autocomplete="off" ${dis}>
+      </div>
+      ${hasParents ? `<div class="field">
+        <label for="fBo">排行：家中第幾個孩子</label>
+        <input type="number" id="fBo" min="1" max="30" value="${p.bo == null ? '' : p.bo}" ${dis} style="width:120px">
+        <div class="note">用來判斷「哥哥／弟弟」「伯伯／叔叔」。</div>
+      </div>` : ''}
+    </details>
+    ${ro ? '' : `    ${p.id !== tree.meId ? '<button class="danger" id="pDel">🗑 刪除這個人</button>' : ''}`}
+  `;
+  const updPreview = () => {
+    const tn = FT.tribalName(p, tree.people);
+    let how = '';
+    if (p.fullOverride) how = '（自己輸入的完整族名）';
+    else if (p.given && fg) how = `${esc(p.given)}（自己）＋ ${esc(fg)}（爸爸的名字）自動接上`;
+    else if (p.given && !father) how = '還沒加爸爸，所以只有自己的名字';
+    else if (p.given) how = '爸爸的族名還沒填，填好就會自動接上';
+    $('#pv').innerHTML = `完整族名：<b>${tn ? esc(tn) : '—'}</b><br>${how}`;
+  };
+  updPreview();
+  const changed = () => { if (!viewing) saveMine(); renderTree(); updPreview(); refreshHeading(); };
+  const refreshHeading = () => {
+    const k = FT.kinMap(tree)[p.id];
+    panel.querySelector('h2').innerHTML = `<span class="k">${esc(k.zh)}${k.term ? '・' + esc(k.term) : ''}</span>${esc(displayName(p, tree.people) || '（還沒填名字）')}`;
+    const c = document.querySelector(`.card[data-id="${p.id}"]`); if (c) c.classList.add('sel');
+  };
+  $('#pClose').onclick = closePanel;
+  if (ro) return;
+  $('#fGiven').oninput = e => { p.given = e.target.value.replace(/\s+/g, ' ').trim(); changed(); };
+  $('#fHan').oninput = e => { p.han = e.target.value.trim(); changed(); };
+  $('#fOv').onchange = e => {
+    if (e.target.checked) { p.fullOverride = FT.tribalName(p, tree.people) || p.given || ''; $('#ovWrap').classList.remove('hidden'); $('#fFull').value = p.fullOverride; $('#fGiven').disabled = true; $('#fFull').focus(); }
+    else { p.fullOverride = ''; $('#ovWrap').classList.add('hidden'); $('#fGiven').disabled = false; }
+    changed();
+  };
+  $('#fFull').oninput = e => { p.fullOverride = e.target.value; changed(); };
+  panel.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
+    p.gender = b.dataset.g; panel.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b)); changed();
+  });
+  const bo = $('#fBo'); if (bo) bo.oninput = e => { const v = parseInt(e.target.value, 10); p.bo = isNaN(v) ? null : v; changed(); };
+  panel.querySelectorAll('.addgrid button').forEach(b => b.onclick = () => doAdd(p.id, b.dataset.rel));
+  const del = $('#pDel'); if (del) del.onclick = () => doDelete(p.id);
+  if (focusName) setTimeout(() => { const f = $('#fGiven'); if (f && !f.disabled) f.focus(); }, 60);
+}
+function doAdd(anchorId, rel) {
+  const a = tree.people[anchorId];
+  const go = otherParentId => {
+    try {
+      const r = FT.addRelative(tree, anchorId, rel, otherParentId === undefined ? {} : { otherParentId });
+      saveMine(); renderTree(); select(r.id); renderPanel(true);
+      if (r.note) toast(r.note, 4200);
+    } catch (e) { toast('⚠ ' + e.message, 3600); }
+  };
+  if ((rel === 'son' || rel === 'daughter') && a.spouses.length > 1) {
+    const opts = a.spouses.map(s => `<button class="btn" data-op="${s}" style="width:100%;justify-content:flex-start">${esc(displayName(tree.people[s], tree.people) || '（未填名字的配偶）')}</button>`).join('');
+    const m = modal('孩子的另一位家長是誰？', `<div style="display:flex;flex-direction:column;gap:8px">${opts}<button class="btn" data-op="">不知道／不填</button></div>`, [{ label: '取消' }]);
+    m.el.querySelectorAll('[data-op]').forEach(b => b.onclick = () => { m.close(); go(b.dataset.op || null); });
+    return;
+  }
+  go();
+}
+function doDelete(id) {
+  const extra = FT.deletePreview(tree, id) || [];
+  const K = FT.kinMap(tree);
+  const nm = id => `${K[id].zh}　${esc(displayName(tree.people[id], tree.people) || '（未填名字）')}`;
+  const list = extra.length ? `<p>刪掉後，下面這 <b>${extra.length}</b> 個人就和「我」連不上了，也會一起刪除：</p><ul>${extra.map(i => `<li>${nm(i)}</li>`).join('')}</ul>` : '';
+  confirmBox('確定要刪除？', `<p>要刪除：<b>${nm(id)}</b></p>${list}<p style="color:#a8231c">刪除後無法復原。</p>`, '刪除', () => {
+    FT.deletePerson(tree, id); closePanel(); saveMine(); renderTree(); toast('已刪除');
+  }, true);
+}
+
+/* ---------- 開始畫面 ---------- */
+function welcome() {
+  let g = '';
+  const m = modal('歡迎！先建立「我」這張卡片',
+    `<div class="welcome-intro">族譜從「我」開始。建好後，點自己的卡片，就可以一個一個加上爸爸、媽媽、兄弟姊妹……</div>
+    <div class="row2">
+      <div class="field"><label for="wCls">班級</label><input type="text" id="wCls" placeholder="例如：801" inputmode="numeric"></div>
+      <div class="field"><label for="wSeat">座號</label><input type="text" id="wSeat" placeholder="例如：5" inputmode="numeric"></div>
+    </div>
+    <div class="field"><label for="wGiven">我的族名（自己的名字）</label><input type="text" id="wGiven" placeholder="例如：Sayun" autocomplete="off" autocapitalize="words"><div class="note">沒有族名也沒關係，可以先空著。</div></div>
+    <div class="field"><label for="wHan">我的漢名</label><input type="text" id="wHan" placeholder="例如：林小芸" autocomplete="off"></div>
+    <div class="field"><label>我的性別</label><div class="seg" id="wG"><button class="M" data-g="M">男</button><button class="F" data-g="F">女</button></div></div>
+    <div id="wErr" style="color:#a8231c;font-weight:700"></div>`,
+    [{ label: '📂 我已經有檔案', onClick: () => { $('#fileOne').click(); return false; } },
+     { label: '開始 ➜', cls: 'primary', onClick: bg => {
+        const cls = $('#wCls').value.trim(), seat = $('#wSeat').value.trim(), given = $('#wGiven').value.trim(), han = $('#wHan').value.trim();
+        const err = !cls || !seat ? '請填班級和座號' : (!given && !han) ? '族名和漢名至少填一個' : !g ? '請選性別' : '';
+        if (err) { $('#wErr').textContent = err; return false; }
+        mine = FT.newTree({ given, han, gender: g });
+        mine.student = { cls, seat };
+        tree = mine; viewing = null; saveMine(); renderTree(); fitView(); select(mine.meId);
+        toast('建好了！接下來在右邊（或下方）按「＋爸爸」「＋媽媽」', 4500);
+      } }], { locked: true });
+  m.el.querySelectorAll('#wG button').forEach(b => b.onclick = () => { g = b.dataset.g; m.el.querySelectorAll('#wG button').forEach(x => x.classList.toggle('on', x === b)); });
+  setTimeout(() => $('#wCls').focus(), 50);
+}
+
+/* ---------- 匯出／匯入 ---------- */
+function fileNameFor(t) {
+  const me = t.people[t.meId], st = t.student || {};
+  const nm = (me.han || FT.tribalName(me, t.people) || '未命名').replace(/[\\/:*?"<>|\s]+/g, '');
+  return `族譜_${st.cls || ''}${st.seat ? '-' + String(st.seat).padStart(2, '0') : ''}_${nm}_${today()}.json`;
+}
+function exportMine() {
+  if (!mine) return;
+  saveMine();
+  const blob = new Blob([JSON.stringify(mine, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fileNameFor(mine);
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  toast('已匯出：' + a.download + '　請把這個檔案交給老師', 5000);
+}
+function readFile(f) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => { try { res(FT.validate(JSON.parse(r.result))); } catch (e) { rej(new Error(f.name + '：' + (e.message.includes('JSON') ? '檔案內容壞掉了' : e.message))); } };
+    r.onerror = () => rej(new Error(f.name + '：讀不到檔案'));
+    r.readAsText(f);
+  });
+}
+$('#fileOne').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    const data = await readFile(f);
+    const apply = () => {
+      document.querySelectorAll('.modal-bg').forEach(m => m.remove());
+      mine = data; tree = mine; viewing = null; $('#roBar').classList.add('hidden');
+      saveMine(); closePanel(); renderTree(); startView(); toast('已開啟檔案，可以繼續編輯');
+    };
+    if (mine && Object.keys(mine.people).length > 1) confirmBox('要用這個檔案取代目前的族譜嗎？', '<p>目前平板上的族譜會被換掉。如果還沒匯出，建議先按「取消」，匯出後再開啟。</p>', '取代', apply, true);
+    else apply();
+  } catch (err) { toast('⚠ ' + err.message, 4500); }
+};
+
+/* ---------- 稱謂表 ---------- */
+function termsDialog() {
+  const t = tree;
+  const rows = FT.TERM_DEFS.map(([k, zh, def]) => {
+    const v = t.terms && k in t.terms ? t.terms[k] : def;
+    return `<tr><td>${esc(zh)}</td><td><input type="text" data-k="${k}" value="${esc(v)}" ${viewing ? 'disabled' : ''} placeholder="（空白就只顯示中文）"></td></tr>`;
+  }).join('');
+  modal('🗣️ 族語稱謂對照表',
+    `<div class="welcome-intro">預設用賽考利克泰雅語，部落、家族的說法可能不一樣，<b>請和族語老師或家裡長輩確認</b>後修改。改好的稱謂會跟著檔案一起匯出。</div>
+     <table class="terms-table"><tr><th style="width:44%">中文稱謂</th><th>族語</th></tr>${rows}</table>`,
+    viewing ? [{ label: '關閉' }] : [
+      { label: '恢復預設', onClick: bg => { bg.querySelectorAll('[data-k]').forEach(i => i.value = FT.DEFAULT_TERMS[i.dataset.k]); return false; } },
+      { label: '取消' },
+      { label: '儲存', cls: 'primary', onClick: bg => {
+        const terms = {};
+        bg.querySelectorAll('[data-k]').forEach(i => { const v = i.value.trim(); if (v !== FT.DEFAULT_TERMS[i.dataset.k]) terms[i.dataset.k] = v; });
+        t.terms = terms; saveMine(); renderTree(); if (selId) renderPanel(); toast('稱謂表已更新');
+      } }], { wide: true });
+}
+
+/* ---------- 列印 ---------- */
+const MM = 96 / 25.4, PAGE_W = 279 * MM, PAGE_H = 164 * MM;
+const inFrame = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+function rosterHTML(t, only) {
+  const K = FT.kinMap(t), G = FT.generations(t), L = FT.layout(t, only ? { only } : {});
+  const ps = Object.values(t.people).filter(p => !only || only.has(p.id)).sort((a, b) => (G[a.id] - G[b.id]) || (L.pos[a.id].x - L.pos[b.id].x));
+  const nm = id => id && t.people[id] ? esc(displayName(t.people[id], t.people) || '（未填）') : '';
+  return `<table class="roster"><thead><tr><th>代</th><th>稱謂</th><th>族語稱謂</th><th>族名</th><th>漢名</th><th>性別</th><th>爸爸</th><th>媽媽</th></tr></thead><tbody>
+    ${ps.map(p => { const g = G[p.id]; return `<tr><td>${g === 0 ? '我這代' : g < 0 ? '上 ' + (-g) + ' 代' : '下 ' + g + ' 代'}</td><td>${esc(K[p.id].zh)}</td><td><i>${esc(K[p.id].term)}</i></td><td><b>${esc(FT.tribalName(p, t.people))}</b></td><td>${esc(p.han)}</td><td>${GENDER[p.gender] || ''}</td><td>${nm(p.fatherId)}</td><td>${nm(p.motherId)}</td></tr>`; }).join('')}</tbody></table>`;
+}
+function pageHead(t, sub, extra) {
+  const me = t.people[t.meId], st = t.student || {};
+  return `<div class="weave pw"></div><div class="ph"><div><div class="s">宜蘭縣立大同國中・泰雅族譜建置系統</div><div class="t">我的家族樹${sub ? '　' + sub : ''}${extra || ''}</div></div>
+    <div class="r">${esc(st.cls || '')} 班 ${esc(st.seat || '')} 號　<b>${esc(displayName(me, t.people))}</b>${me.han && FT.tribalName(me, t.people) ? '（' + esc(me.han) + '）' : ''}<br>共 ${Object.keys(t.people).length} 人・${new Date().toLocaleDateString('zh-TW')}</div></div>`;
+}
+// 把整棵樹畫成一張 SVG（列印用）
+function treeBody(t, only) {
+  const L = FT.layout(t, only ? { only } : {}), K = FT.kinMap(t), D = L.dim;
+  let body = linesSVG(L);
+  const fit = (s, max) => { s = s || ''; return s.length > max ? s.slice(0, max - 1) + '…' : s; };
+  L.ids.forEach(id => {
+    const p = t.people[id], { x, y, gen } = L.pos[id], k = K[id], me = id === t.meId;
+    const col = p.gender === 'M' ? '#2f4858' : p.gender === 'F' ? '#a8231c' : '#b9a690';
+    const tn = FT.tribalName(p, t.people);
+    const tnSize = tn.length > 11 ? 15.5 : 19;
+    body += `<g>
+      <rect x="${x}" y="${y}" width="${D.W}" height="${D.H}" rx="12" fill="#fff" stroke="${me ? '#a8231c' : '#b9a690'}" stroke-width="${me ? 4 : 2.5}" ${isBlank(p) ? 'stroke-dasharray="7 5"' : ''}/>
+      <path d="M${x + 12} ${y + 1.5} H${x + D.W - 12} Q${x + D.W - 1.5} ${y + 1.5} ${x + D.W - 1.5} ${y + 12} V${y + 30} H${x + 1.5} V${y + 12} Q${x + 1.5} ${y + 1.5} ${x + 12} ${y + 1.5}Z" fill="${me ? '#a8231c' : '#f4ece0'}"/>
+      <rect x="${x}" y="${y + 6}" width="8" height="${D.H - 12}" fill="${col}"/>
+      <text x="${x + 16}" y="${y + 22}" font-size="16" font-weight="700" fill="${me ? '#fff' : '#1f1a17'}">${esc(k.zh)}</text>
+      ${k.term ? `<text x="${x + D.W - 8}" y="${y + 22}" font-size="14.5" font-style="italic" font-weight="700" text-anchor="end" fill="${me ? '#ffe1d6' : '#a8231c'}">${esc(fit(k.term, 16))}</text>` : ''}
+      <svg x="${x + 13}" y="${y + 37}" width="60" height="60" viewBox="0 0 60 60"><g ${isBlank(p) ? 'opacity=".45"' : ''}>${avatarSVG(p.gender, ageOf(gen))}</g><path d="M-1 -1H61V61H-1Z M30 0.5A29.5 29.5 0 1 0 30.01 0.5Z" fill="#fff" fill-rule="evenodd"/></svg>
+      <text x="${x + 81}" y="${y + 60}" font-size="${tnSize}" font-weight="900" fill="${tn ? '#1f1a17' : '#a99a8e'}">${tn ? esc(fit(tn, 15)) : '（族名未填）'}</text>
+      <text x="${x + 81}" y="${y + 86}" font-size="16" fill="${p.han ? '#4b403a' : '#a99a8e'}">${p.han ? esc(fit(p.han, 7)) : '漢名未填'}</text>
+      ${p.gender ? `<rect x="${x + D.W - 34}" y="${y + D.H - 28}" width="26" height="21" rx="6" fill="${col}"/><text x="${x + D.W - 21}" y="${y + D.H - 12}" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">${GENDER[p.gender]}</text>` : ''}
+    </g>`;
+  });
+  return { L, body };
+}
+const svgWrap = (vb, body) => `<svg viewBox="${vb.join(' ')}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans TC, Noto Sans CJK TC, PingFang TC, Microsoft JhengHei, sans-serif">${body}</svg>`;
+
+// 依選項算出要印的頁面
+const TILE_SCALE = { mid: 0.55, big: 0.8 };
+function planPages(t, o) {
+  const only = o.range === 'all' ? null : FT.branchIds(t, o.range, o.root);
+  const { L, body } = treeBody(t, only);
+  const pad = 12, W = L.width + pad * 2, H = L.height + pad * 2;
+  const fitS = Math.min(1, PAGE_W / W, PAGE_H / H);
+  const rangeName = { all: '', paternal: '・爸爸那一邊', maternal: '・媽媽那一邊', desc: '・' + (o.root && t.people[o.root] ? displayName(t.people[o.root], t.people) + '的後代' : '後代') }[o.range];
+  const pages = [];
+  if (o.mode === 'fit' || fitS >= (TILE_SCALE[o.size] || .55)) {
+    pages.push({ kind: 'tree', vb: [-pad, -pad, W, H], title: rangeName });
+  } else {
+    const s = TILE_SCALE[o.size] || .55;
+    const tw = PAGE_W / s, th = PAGE_H / s;
+    const cols = Math.ceil(W / tw), rows = Math.ceil(H / th);
+    // 讓拼貼的內容置中
+    const ox = -pad - (cols * tw - W) / 2, oy = -pad - (rows * th - H) / 2;
+    // 總覽頁：整棵樹＋格線編號
+    let grid = '';
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const gx = ox + c * tw, gy = oy + r * th;
+      grid += `<rect x="${gx}" y="${gy}" width="${tw}" height="${th}" fill="none" stroke="#2f6fb0" stroke-width="${6 / Math.min(PAGE_W / (cols * tw), PAGE_H / (rows * th))}" stroke-dasharray="40 20"/>`;
+      grid += `<text x="${gx + tw / 2}" y="${gy + th / 2}" font-size="${th / 4}" font-weight="900" fill="#2f6fb0" opacity=".35" text-anchor="middle" dominant-baseline="middle">${r + 1}-${c + 1}</text>`;
+    }
+    pages.push({ kind: 'overview', vb: [ox, oy, cols * tw, rows * th], extraBody: grid, title: (rangeName ? rangeName + '・' : '') + '總覽（拼貼對照）' });
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++)
+      pages.push({ kind: 'tile', vb: [ox + c * tw, oy + r * th, tw, th], r, c, rows, cols, title: rangeName });
+  }
+  return { only, L, body, pages, fitS, count: pages.length + (o.roster ? Math.max(1, Math.ceil(((only ? only.size : Object.keys(t.people).length) + 1) / 26)) : 0) };
+}
+function renderPages(container, list, o) {
+  container.innerHTML = '';
+  list.forEach(t => {
+    const plan = planPages(t, o);
+    plan.pages.forEach(pg => {
+      const el = document.createElement('div'); el.className = 'pg';
+      let extra = '';
+      if (pg.kind === 'tile') {
+        let m = `<span class="tilemap" style="grid-template-columns:repeat(${pg.cols},12px)">`;
+        for (let r = 0; r < pg.rows; r++) for (let c = 0; c < pg.cols; c++) m += `<i class="${r === pg.r && c === pg.c ? 'on' : ''}"></i>`;
+        extra = `　<span style="font-size:18px">拼貼 ${pg.r + 1}-${pg.c + 1}（共 ${pg.rows}×${pg.cols} 張）</span>${m}</span>`;
+      }
+      el.innerHTML = pageHead(t, pg.title, extra) + `<div class="treebox ${pg.kind === 'tile' ? 'cut' : ''}">${svgWrap(pg.vb, plan.body + (pg.extraBody || ''))}</div>`;
+      container.appendChild(el);
+    });
+    if (o.roster) {
+      const el = document.createElement('div'); el.className = 'pg list';
+      el.innerHTML = pageHead(t, '名冊' + (plan.pages[0].title || '')) + rosterHTML(t, plan.only);
+      container.appendChild(el);
+    }
+  });
+}
+function printDocHTML() {
+  const css = document.querySelector('style').textContent;
+  return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>族譜列印</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet"><style>${css}</style></head>
+<body class="printdoc"><div class="pbar"><b>族譜列印檔</b><span>如果沒有自動跳出列印視窗，請按右邊按鈕，或按 Ctrl＋P（Mac：⌘＋P）</span><button class="btn primary" onclick="window.print()">🖨️ 列印</button></div>
+<div id="print">${$('#print').innerHTML}</div><script>window.addEventListener('load',function(){setTimeout(function(){window.print()},600)})<\/script></body></html>`;
+}
+function downloadPrintDoc(list) {
+  const t = list[0], st = t.student || {}, me = t.people[t.meId];
+  const name = list.length > 1 ? `族譜列印_全班${list.length}份_${today()}.html` : `族譜列印_${st.cls || ''}-${String(st.seat || '').padStart(2, '0')}_${(me.han || FT.tribalName(me, t.people) || '').replace(/[\\/:*?"<>|\s]+/g, '')}_${today()}.html`;
+  const blob = new Blob([printDocHTML()], { type: 'text/html' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  toast('已下載列印檔：' + name + '　用 Chrome 或 Edge 打開就會跳出列印', 6000);
+}
+function printDialog(list) {
+  const t = list[0], N = Object.keys(t.people).length, single = list.length === 1;
+  const o = { range: 'all', root: '', mode: 'fit', size: 'mid', roster: true };
+  const first = planPages(t, o);
+  if (first.fitS < 0.45) o.mode = 'tile';
+  const elders = Object.values(t.people).filter(p => FT.childrenOf(p.id, t.people).length)
+    .map(p => ({ p, g: FT.generations(t)[p.id] })).sort((a, b) => a.g - b.g)
+    .map(({ p }) => `<option value="${p.id}">${esc(FT.kinMap(t)[p.id].zh)}　${esc(displayName(p, t.people) || '（未填）')}</option>`).join('');
+  const chips = (key, items) => items.map(([v, l]) => `<button class="chip" data-k="${key}" data-v="${v}">${l}</button>`).join('');
+  const m = modal('🖨️ 列印' + (single ? '' : `（${list.length} 份，每份用相同設定）`), `
+    ${inFrame ? '<div class="frame-warn">⚠ 你現在是在「預覽視窗」裡打開這個網頁，瀏覽器不允許從這裡直接列印。請按「⬇️ 下載列印檔」，再用 Chrome 或 Edge 打開下載的檔案列印；或把族譜建置系統.html 下載後直接用瀏覽器打開。</div>' : ''}
+    <div class="popt">
+      ${single ? `<div class="grp"><b>印哪些人</b>${chips('range', [['all', '整個家族'], ['paternal', '爸爸那一邊'], ['maternal', '媽媽那一邊'], ['desc', '某位長輩的後代']])}
+        <select id="pRoot" class="hidden">${elders}</select></div>` : ''}
+      <div class="grp"><b>版面</b>${chips('mode', [['fit', '縮成一張 A4'], ['tile', '分頁拼貼（字比較大）']])}</div>
+      <div class="grp" id="gSize"><b>拼貼字級</b>${chips('size', [['mid', '中'], ['big', '大']])}</div>
+      <div class="grp"><b>名冊</b>${chips('roster', [['1', '附上名冊表格'], ['0', '不要']])}</div>
+      <div class="psum" id="pSum"></div>
+      <div class="pv-pages" id="pPrev"></div>
+    </div>`, [
+      { label: '取消' },
+      { label: '⬇️ 下載列印檔', cls: inFrame ? 'primary' : '', onClick: () => { downloadPrintDoc(list); } },
+      { label: '🖨️ 列印', cls: inFrame ? '' : 'primary', onClick: () => { try { window.print(); } catch (e) { toast('⚠ 這裡不能直接列印，請改用「下載列印檔」', 5000); return false; } } },
+    ], { wide: true });
+  m.el.querySelector('.modal').style.maxWidth = '1000px';
+  const update = () => {
+    m.el.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', String(o[c.dataset.k] === true ? '1' : o[c.dataset.k] === false ? '0' : o[c.dataset.k]) === c.dataset.v));
+    const sel = m.el.querySelector('#pRoot'); if (sel) { sel.classList.toggle('hidden', o.range !== 'desc'); if (o.range === 'desc' && !o.root) o.root = sel.value; }
+    m.el.querySelector('#gSize').classList.toggle('hidden', o.mode !== 'tile');
+    renderPages($('#print'), list, o);
+    const plan = planPages(t, o);
+    const shown = plan.only ? plan.only.size : N;
+    const pct = Math.round(plan.fitS * 100);
+    let msg = `這次會印 <b>${shown}</b> 人`;
+    if (single) msg += `，共 <b>${$('#print').children.length}</b> 張 A4 橫式。`;
+    else msg += `（第一份），全部共 <b>${$('#print').children.length}</b> 張 A4。`;
+    let warn = false;
+    if (o.mode === 'fit') {
+      msg += `<br>縮成一張時，字大約是螢幕的 <b>${pct}%</b>。`;
+      if (pct < 45) { msg += '人數多、字會很小，建議改用「分頁拼貼」或只印「一邊」。'; warn = true; }
+    } else if (plan.pages.length > 1) msg += `<br>拼貼：先看第 1 張「總覽」上的編號，把各張依編號排好，剪掉白邊後黏起來就是一張大族譜。`;
+    else msg += '<br>人數不多，一張就放得下，不需要拼貼。';
+    const s = $('#pSum'); s.innerHTML = msg; s.classList.toggle('warn', warn);
+    $('#pPrev').innerHTML = $('#print').innerHTML;
+  };
+  m.el.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+    const k = c.dataset.k; o[k] = k === 'roster' ? c.dataset.v === '1' : c.dataset.v; update();
+  });
+  const sel = m.el.querySelector('#pRoot'); if (sel) sel.onchange = () => { o.root = sel.value; update(); };
+  update();
+}
+function printTrees(list) { printDialog(list); }
+function printCurrent() { if (tree) printDialog([tree]); }
+
+/* ---------- 老師檢視 ---------- */
+let classList = load(KEY_CLASS) || [];
+function saveClass() { store(KEY_CLASS, classList); }
+function teacherDialog() {
+  const sorted = classList.slice().sort((a, b) => String(a.data.student.cls + String(a.data.student.seat).padStart(3, '0')).localeCompare(String(b.data.student.cls + String(b.data.student.seat).padStart(3, '0'))));
+  const items = sorted.map(it => {
+    const t = it.data, me = t.people[t.meId], st = t.student || {};
+    return `<div class="cls-item"><div><div class="nm">${esc(st.cls)} 班 ${esc(st.seat)} 號　${esc(displayName(me, t.people) || '（未填）')}${me.han && FT.tribalName(me, t.people) ? '（' + esc(me.han) + '）' : ''}</div>
+      <div class="meta">${Object.keys(t.people).length} 人・${t.updatedAt ? '更新於 ' + new Date(t.updatedAt).toLocaleString('zh-TW') : ''}</div></div>
+      <div class="acts"><button class="btn small dark" data-view="${it.key}">檢視</button><button class="btn small" data-print="${it.key}">列印</button><button class="btn small" data-rm="${it.key}">移除</button></div></div>`;
+  }).join('') || '<p style="color:#6f625a">還沒有匯入任何學生檔案。</p>';
+  const m = modal('👩‍🏫 老師檢視：全班族譜',
+    `<div class="welcome-intro">按「匯入學生檔案」，一次選取全班交來的 .json 檔（可以多選）。同一位學生重複匯入，會用新的取代舊的。資料只存在這台電腦。</div>
+     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="tImp">📥 匯入學生檔案</button><button class="btn" id="tAll" ${classList.length ? '' : 'disabled'}>🖨️ 全部列印（${classList.length} 份）</button><button class="btn" id="tClr" ${classList.length ? '' : 'disabled'}>清空清單</button></div>
+     <div class="cls-list">${items}</div>`, [{ label: '關閉' }], { wide: true });
+  m.el.querySelector('#tImp').onclick = () => { m.close(); $('#fileMany').click(); };
+  m.el.querySelector('#tAll').onclick = () => { m.close(); printTrees(sorted.map(i => i.data)); };
+  m.el.querySelector('#tClr').onclick = () => { m.close(); confirmBox('清空全班清單？', '<p>只會清掉這台電腦上的清單，學生的檔案不受影響。</p>', '清空', () => { classList = []; saveClass(); teacherDialog(); }, true); };
+  m.el.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { m.close(); viewStudent(classList.find(i => i.key === b.dataset.view)); });
+  m.el.querySelectorAll('[data-print]').forEach(b => b.onclick = () => { m.close(); printTrees([classList.find(i => i.key === b.dataset.print).data]); });
+  m.el.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { classList = classList.filter(i => i.key !== b.dataset.rm); saveClass(); m.close(); teacherDialog(); });
+}
+$('#fileMany').onchange = async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  let ok = 0; const errs = [];
+  for (const f of files) {
+    try {
+      const d = await readFile(f);
+      const key = (d.student.cls || '') + '-' + (d.student.seat || '') + '-' + d.meId;
+      classList = classList.filter(i => i.key !== key); classList.push({ key, data: d }); ok++;
+    } catch (err) { errs.push(err.message); }
+  }
+  saveClass();
+  document.querySelectorAll('.modal-bg').forEach(m => m.remove());
+  teacherDialog();
+  toast(`匯入 ${ok} 份` + (errs.length ? `，${errs.length} 份失敗：${errs.join('；')}` : ''), errs.length ? 7000 : 3000);
+};
+function viewStudent(it) {
+  if (!it) return;
+  viewing = it; tree = it.data; closePanel();
+  const st = tree.student || {}, me = tree.people[tree.meId];
+  const bar = $('#roBar');
+  bar.innerHTML = `<span>👀 檢視中：${esc(st.cls)} 班 ${esc(st.seat)} 號 ${esc(displayName(me, tree.people))}（唯讀）</span><button class="btn small" id="roPrint">🖨️ 列印</button><button class="btn small" id="roList">全班清單</button><button class="btn small primary" id="roBack">回到我的族譜</button>`;
+  bar.classList.remove('hidden');
+  $('#roPrint').onclick = () => printTrees([tree]);
+  $('#roList').onclick = teacherDialog;
+  $('#roBack').onclick = backToMine;
+  setEditable(false);
+  renderTree(); startView();
+}
+function backToMine() {
+  viewing = null; $('#roBar').classList.add('hidden'); setEditable(true); closePanel();
+  tree = mine;
+  if (!mine) { $('#cards').innerHTML = ''; $('#lines').innerHTML = ''; renderWho(); welcome(); return; }
+  renderTree(); fitView();
+}
+function setEditable(on) { ['#bExport', '#bImport'].forEach(s => $(s).disabled = !on); }
+
+/* ---------- 找家人 ---------- */
+(function finder() {
+  const inp = $('#find'), res = $('#findRes');
+  const run = () => {
+    const q = inp.value.trim().toLowerCase();
+    if (!q || !tree) { res.classList.add('hidden'); return; }
+    const K = FT.kinMap(tree);
+    const hits = Object.values(tree.people).filter(p => [p.given, p.han, FT.tribalName(p, tree.people), K[p.id].zh, K[p.id].term].some(s => (s || '').toLowerCase().includes(q))).slice(0, 30);
+    res.innerHTML = hits.length ? hits.map(p => `<button data-id="${p.id}"><span class="k">${esc(K[p.id].zh)}</span><span><b>${esc(FT.tribalName(p, tree.people) || '')}</b> ${esc(p.han)}</span></button>`).join('') : '<div style="padding:10px 12px;color:#6f625a">找不到</div>';
+    res.classList.remove('hidden');
+    res.querySelectorAll('button').forEach(b => b.onclick = () => { res.classList.add('hidden'); inp.value = ''; inp.blur(); select(b.dataset.id); focusPerson(b.dataset.id, Math.max(view.s, 0.9)); });
+  };
+  inp.addEventListener('input', run);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { const b = res.querySelector('button'); if (b) b.click(); } if (e.key === 'Escape') { inp.value = ''; run(); } });
+  document.addEventListener('pointerdown', e => { if (!e.target.closest('.finder')) res.classList.add('hidden'); });
+})();
+
+/* ---------- 工具列 ---------- */
+$('#bExport').onclick = exportMine;
+$('#bImport').onclick = () => $('#fileOne').click();
+$('#bPrint').onclick = printCurrent;
+$('#bTerms').onclick = () => tree && termsDialog();
+$('#bIn').onclick = () => { const r = $('#vp').getBoundingClientRect(); zoomAt(1.2, r.width / 2, r.height / 2); };
+$('#bOut').onclick = () => { const r = $('#vp').getBoundingClientRect(); zoomAt(1 / 1.2, r.width / 2, r.height / 2); };
+$('#bFit').onclick = fitView;
+$('#bMe').onclick = () => tree && focusPerson(tree.meId, Math.max(view.s, 0.85));
+$('#bTeacher').onclick = teacherDialog;
+$('#bHelp').onclick = () => modal('❓ 使用說明', `
+  <div class="sect">學生</div>
+  <ol style="margin:0;padding-left:1.4em">
+    <li>第一次打開：填班級、座號、自己的族名或漢名、性別，按「開始」。</li>
+    <li><b>點一下任何一張卡片</b>，在旁邊按「＋爸爸」「＋媽媽」「＋哥哥」……就會長出新卡片，接著填名字。</li>
+    <li>族名欄<b>只填這個人自己的名字</b>，爸爸的名字會自動接在後面（子連父名）。家裡寫法不一樣時，到「更多設定」自己打完整族名。</li>
+    <li>資料會<b>自動存在這台平板</b>。做完或下課前，按「💾 匯出檔案」，把檔案交給老師。</li>
+    <li>換平板或資料不見時，按「📂 開啟檔案」打開之前匯出的檔案，就能接著做。</li>
+    <li>要換人使用或重新做一份：按「🧹 清除本機資料」（記得先匯出）。</li>
+  </ol>
+  <div class="sect">老師</div>
+  <ol style="margin:0;padding-left:1.4em">
+    <li>按「👩‍🏫 老師檢視」→「匯入學生檔案」，可以一次選全班的檔案。</li>
+    <li>每位學生可以「檢視」「列印」，也可以「全部列印」。列印時可以選：縮成一張 A4、或分頁拼貼（字比較大，印好再黏成大張）；也可以只印爸爸那邊、媽媽那邊，或某位長輩的後代；可附上名冊表格。</li>
+    <li>家族很大時，用上方「🔍 找家人」輸入名字，就會跳到那個人。</li>
+    <li>如果按列印沒有反應（例如在預覽視窗裡打開），請在列印視窗按「⬇️ 下載列印檔」，用 Chrome 或 Edge 打開再印。</li>
+    <li>「🗣️ 稱謂表」可以修改族語稱謂，改過的稱謂會跟著檔案走。</li>
+  </ol>
+  <div class="welcome-intro">提醒：家人的名字屬於個人資料，匯出的檔案請交給老師就好，不要上傳到公開的網路空間。</div>`, [{ label: '知道了', cls: 'primary' }], { wide: true });
+$('#bNew').onclick = clearDialog;
+function clearDialog() {
+  const nMine = mine ? Object.keys(mine.people).length : 0, nClass = classList.length;
+  if (!nMine && !nClass) { toast('這台裝置上沒有存任何族譜資料'); return; }
+  const me = mine && mine.people[mine.meId];
+  const m = modal('🧹 清除這台裝置上的資料', `
+    <p style="margin:0">勾選要清除的資料（網頁本身不會被刪掉）：</p>
+    ${nMine ? `<label class="check" style="font-size:18px"><input type="checkbox" id="cMine" checked> 我的族譜：${esc(displayName(me, mine.people) || '（未填名字）')}，共 ${nMine} 人</label>` : ''}
+    ${nClass ? `<label class="check" style="font-size:18px"><input type="checkbox" id="cClass" ${nMine ? '' : 'checked'}> 老師匯入的全班清單：${nClass} 份</label>` : ''}
+    ${nMine ? `<div class="welcome-intro">清除後<b>無法復原</b>。如果之後還要用，請先按「💾 先匯出」把族譜存成檔案。<br><button class="btn small" id="cExp" style="margin-top:6px">💾 先匯出我的族譜</button></div>` : ''}
+    <div id="cErr" style="color:#a8231c;font-weight:700"></div>`,
+    [{ label: '取消' },
+     { label: '確定清除', cls: 'primary', onClick: bg => {
+        const cm = bg.querySelector('#cMine'), cc = bg.querySelector('#cClass');
+        const doMine = !!(cm && cm.checked), doClass = !!(cc && cc.checked);
+        if (!doMine && !doClass) { bg.querySelector('#cErr').textContent = '請至少勾一項'; return false; }
+        clearLocal(doMine, doClass);
+      } }]);
+  const ex = m.el.querySelector('#cExp'); if (ex) ex.onclick = exportMine;
+}
+function clearLocal(doMine, doClass) {
+  try {
+    if (doMine) localStorage.removeItem(KEY_MINE);
+    if (doClass) localStorage.removeItem(KEY_CLASS);
+    if (doMine && doClass) Object.keys(localStorage).filter(k => k.startsWith('datongFT.')).forEach(k => localStorage.removeItem(k));
+  } catch (e) {}
+  if (doClass) classList = [];
+  // 正在檢視學生時，先回到自己的畫面
+  const wasViewing = !!viewing;
+  if (viewing && (doClass || doMine)) { viewing = null; $('#roBar').classList.add('hidden'); setEditable(true); }
+  closePanel(); $('#print').innerHTML = ''; layoutCache.key = '';
+  if (doMine) {
+    mine = null; tree = null; savedAt = null;
+    $('#cards').innerHTML = ''; $('#lines').innerHTML = ''; renderWho();
+    welcome();
+    toast(doClass ? '已清除我的族譜和全班清單，可以重新開始了' : '已清除，可以重新建立新的族譜了', 4000);
+  } else {
+    if (wasViewing) { tree = mine; if (mine) { renderTree(); startView(); } }
+    toast('已清除全班清單');
+  }
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !document.querySelector('.modal-bg')) closePanel(); });
+
+/* ---------- 版面高度 ---------- */
+function sizeMain() { const top = $('#toolbar').getBoundingClientRect().bottom; $('#main').style.top = top + 'px'; }
+window.addEventListener('resize', () => { sizeMain(); });
+
+
+/* ---------- 啟動 ---------- */
+sizeMain();
+const saved = load(KEY_MINE);
+if (saved) {
+  try { mine = FT.validate(saved); tree = mine; renderTree(); startView(); } catch (e) { mine = null; }
+}
+if (!mine) welcome();
+renderWho();
+window.__ft = { get tree() { return tree; }, FT };
+})();
+</script>
+</body>
+</html>
