@@ -72,7 +72,21 @@ header.top .who b{color:#fff}
 .card .hn{font-size:16px;color:#4b403a;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card.blank .av{opacity:.45}
 .card .empty{color:#7a6c62;font-weight:500;font-size:16px}
-.card .g{position:absolute;right:8px;bottom:6px;font-size:14px;font-weight:700;color:#fff;border-radius:8px;padding:0 7px;line-height:22px}
+.card .chips{position:absolute;right:8px;bottom:6px;display:flex;gap:4px;align-items:center}
+.card .chips span{font-size:14px;font-weight:700;border-radius:8px;padding:0 7px;line-height:22px;white-space:nowrap}
+.card .g{color:#fff}
+.card .tr{background:#f4ece0;color:#5b4a3f;border:1px solid #cdbba5;line-height:20px!important}
+.card .ad{background:#fff;color:var(--ok);border:1.5px dashed var(--ok);line-height:19px!important}
+.field select{width:100%;font-size:19px;padding:9px 10px;border:2px solid #cdbba5;border-radius:10px;background:#fffdf9}
+.quick select{font-size:17px;padding:6px 8px;border:2px solid #cdbba5;border-radius:10px;background:#fff;min-height:42px;max-width:170px}
+.rel{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #eadfcf}
+.rel:last-child{border-bottom:none}
+.rel>span{font-size:17px}
+.seg2{display:flex;gap:6px}
+.seg2 button{border:2px solid #cdbba5;background:#fff;border-radius:999px;padding:4px 14px;font-weight:700;font-size:16px;min-height:40px}
+.seg2 button.on{background:var(--black);border-color:var(--black);color:#fff}
+.seg2 button.on.warn{background:#6f625a;border-color:#6f625a}
+.tnote{font-size:14.5px;color:#7a4a12;background:#fdf1df;border-radius:8px;padding:4px 8px;margin-top:6px}
 .card.M{border-left:9px solid var(--male)} .card.M .g{background:var(--male)}
 .card.F{border-left:9px solid var(--female)} .card.F .g{background:var(--female)}
 .card.blank{border-style:dashed;background:#fffdf9}
@@ -174,6 +188,8 @@ details.more[open]{display:flex;flex-direction:column;gap:12px;padding-bottom:12
 .pg .tilemap{display:inline-grid;gap:2px;vertical-align:middle;margin-left:8px}
 .pg .tilemap i{width:12px;height:9px;background:#ddd;display:block}
 .pg .tilemap i.on{background:var(--red)}
+.pg .legend{margin-left:auto;font-size:12.5px;color:#444;padding:1px 8px;border:1px solid #ccc;border-radius:6px;white-space:nowrap;align-self:flex-end;margin-bottom:2px}
+.pg .legend + .r{margin-left:10px}
 .roster{width:100%;border-collapse:collapse;font-size:14px}
 .roster th,.roster td{border:1px solid #888;padding:3px 6px;text-align:left}
 .roster th{background:#eee5d8}
@@ -298,6 +314,16 @@ const FT = (() => {
     ['grandSibling', '叔公／姑婆／舅公／姨婆', ''],
   ];
   const DEFAULT_TERMS = Object.fromEntries(TERM_DEFS.map(d => [d[0], d[2]]));
+  // 族籍選項：原住民族 16 族（依原民會公告）＋其他
+  const TRIBES = ['泰雅族', '太魯閣族', '賽德克族', '賽夏族', '噶瑪蘭族', '阿美族', '布農族', '排灣族', '魯凱族', '卑南族',
+    '鄒族', '邵族', '雅美族（達悟族）', '撒奇萊雅族', '拉阿魯哇族', '卡那卡那富族', '漢族', '新住民'];
+  // 傳統上採「子連父名」的族
+  const PATRONYMIC = ['泰雅族', '太魯閣族', '賽德克族', '賽夏族', '噶瑪蘭族'];
+  function tribeShort(t) {
+    if (!t) return '';
+    if (t.startsWith('雅美族')) return '達悟';
+    return t.replace(/族$/, '');
+  }
 
   let _seq = 0;
   function newId() {
@@ -316,6 +342,10 @@ const FT = (() => {
       fatherId: o.fatherId || null,
       motherId: o.motherId || null,
       spouses: o.spouses ? o.spouses.slice() : [],
+      divorced: o.divorced ? o.divorced.slice() : [], // 已離婚的配偶（雙方都記）
+      adoptF: !!o.adoptF,          // 和爸爸是收養關係
+      adoptM: !!o.adoptM,          // 和媽媽是收養關係
+      tribe: o.tribe || '',        // 族籍
     };
   }
 
@@ -401,7 +431,10 @@ const FT = (() => {
     const r = (zh, key) => ({ zh, term: key ? T(key) : '', key: key || '' });
 
     if (steps === '') return r('我');
-    if (steps === 'P') return r(pick('爸爸', '媽媽', '父母'), g === 'F' ? 'mother' : g === 'M' ? 'father' : '');
+    if (steps === 'P') {
+      const adopted = (me.fatherId === x.id && me.adoptF) || (me.motherId === x.id && me.adoptM);
+      return r(adopted ? pick('養父', '養母', '養父母') : pick('爸爸', '媽媽', '父母'), g === 'F' ? 'mother' : g === 'M' ? 'father' : '');
+    }
     if (/^P+$/.test(steps)) {
       const n = steps.length;
       const maternal = P(1) && P(1).gender === 'F';
@@ -448,12 +481,15 @@ const FT = (() => {
       else zh = pick('伯公／叔公', '姑婆', '伯叔公／姑婆');
       return r(zh, 'grandSibling');
     }
-    if (steps === 'C') return r(pick('兒子', '女兒', '孩子'), 'child');
+    if (steps === 'C') {
+      const adopted = (x.fatherId === me.id && x.adoptF) || (x.motherId === me.id && x.adoptM);
+      return r(adopted ? pick('養子', '養女', '養子女') : pick('兒子', '女兒', '孩子'), 'child');
+    }
     if (steps === 'CC') {
       const mid = P(1), outer = mid && mid.gender === 'F';
       return r((outer ? '外' : '') + pick('孫子', '孫女', '孫子女'), 'grandchild');
     }
-    if (steps === 'S') return r(pick('丈夫', '妻子', '配偶'), 'spouse');
+    if (steps === 'S') return (me.divorced || []).includes(x.id) ? r(pick('前夫', '前妻', '前配偶')) : r(pick('丈夫', '妻子', '配偶'), 'spouse');
     if (steps === 'PCC') {
       const sib = P(2), viaSister = sib && sib.gender === 'F';
       return r(viaSister ? pick('外甥', '外甥女', '外甥') : pick('姪子', '姪女', '姪子女'), 'nibling');
@@ -556,13 +592,24 @@ const FT = (() => {
       const group = sibGroup(a.id, people);
       normalizeBo(group);
       const older = rel.startsWith('older');
-      const p = add({ gender: rel.endsWith('Brother') ? 'M' : 'F', fatherId: a.fatherId, motherId: a.motherId });
+      const p = add({ gender: rel.endsWith('Brother') ? 'M' : 'F', fatherId: a.fatherId, motherId: a.motherId, tribe: a.tribe });
       p.bo = a.bo + (older ? -0.5 : 0.5);
       normalizeBo([...group, p]);
       return { id: p.id, created, note };
     }
     throw new Error('不認得的關係：' + rel);
   }
+
+  /* ---------- 特殊關係 ---------- */
+  function setDivorced(tree, a, b, on) {
+    const P = tree.people; if (!P[a] || !P[b] || !P[a].spouses.includes(b)) return;
+    [[a, b], [b, a]].forEach(([x, y]) => {
+      const d = P[x].divorced = (P[x].divorced || []).filter(z => z !== y);
+      if (on) d.push(y);
+    });
+  }
+  function isDivorced(tree, a, b) { const p = tree.people[a]; return !!(p && (p.divorced || []).includes(b)); }
+  function isAdopted(p) { return !!(p && ((p.fatherId && p.adoptF) || (p.motherId && p.adoptM))); }
 
   /* ---------- 刪除 ---------- */
   function connectedFrom(startId, people, skipId) {
@@ -585,6 +632,7 @@ const FT = (() => {
         fatherId: p.fatherId === id ? null : p.fatherId,
         motherId: p.motherId === id ? null : p.motherId,
         spouses: p.spouses.filter(s => s !== id),
+        divorced: (p.divorced || []).filter(s => s !== id),
       });
     }
     const keep = connectedFrom(tree.meId, clone);
@@ -599,6 +647,9 @@ const FT = (() => {
       if (gone.has(p.fatherId)) p.fatherId = null;
       if (gone.has(p.motherId)) p.motherId = null;
       p.spouses = p.spouses.filter(s => !gone.has(s));
+      p.divorced = (p.divorced || []).filter(s => !gone.has(s));
+      if (!p.fatherId) p.adoptF = false;
+      if (!p.motherId) p.adoptM = false;
     }
     return [...gone];
   }
@@ -646,6 +697,7 @@ const FT = (() => {
         fatherId: only.has(p.fatherId) ? p.fatherId : null,
         motherId: only.has(p.motherId) ? p.motherId : null,
         spouses: p.spouses.filter(s => only.has(s)),
+        divorced: (p.divorced || []).filter(s => only.has(s)),
       });
     }
     return out;
@@ -780,7 +832,7 @@ const FT = (() => {
       const a = pos[i], b = pos[s];
       if (a.y !== b.y) return;
       const [L, R] = a.x < b.x ? [a, b] : [b, a];
-      lines.push({ type: 'marry', x1: L.x + D.W, y1: L.y + D.H / 2, x2: R.x, y2: R.y + D.H / 2, adjacent: R.x - L.x - D.W <= D.coupleGap + 1 });
+      lines.push({ type: 'marry', a: i, b: s, x1: L.x + D.W, y1: L.y + D.H / 2, x2: R.x, y2: R.y + D.H / 2, adjacent: R.x - L.x - D.W <= D.coupleGap + 1 });
     }));
     const units = {};
     ids.forEach(i => {
@@ -858,6 +910,9 @@ const FT = (() => {
       if (p.fatherId && !data.people[p.fatherId]) p.fatherId = null;
       if (p.motherId && !data.people[p.motherId]) p.motherId = null;
       p.spouses = p.spouses.filter(s => data.people[s] && s !== p.id);
+      p.divorced = p.divorced.filter(s => p.spouses.includes(s));
+      if (!p.fatherId) p.adoptF = false;
+      if (!p.motherId) p.adoptM = false;
     }
     data.student = data.student || { cls: '', seat: '' };
     data.terms = data.terms || {};
@@ -865,7 +920,8 @@ const FT = (() => {
   }
 
   return { TERM_DEFS, DEFAULT_TERMS, makePerson, newTree, tribalName, childrenOf, siblingsOf, kinMap, addRelative,
-    deletePreview, deletePerson, layout, generations, validate, isotonic, DIM, paths, branchIds, subsetPeople };
+    deletePreview, deletePerson, layout, generations, validate, isotonic, DIM, paths, branchIds, subsetPeople,
+    TRIBES, PATRONYMIC, tribeShort, setDivorced, isDivorced, isAdopted };
 })();
 if (typeof module !== 'undefined') module.exports = FT;
 
@@ -982,18 +1038,29 @@ function cardHTML(p, kin, pos, t) {
     <div class="cb"><div class="av"><svg viewBox="0 0 60 60">${avatarSVG(p.gender, ageOf(pos.gen))}</svg></div>
     <div class="tx"><div class="tn">${tn ? esc(tn) : '<span class="empty">（族名未填）</span>'}</div>
     <div class="hn">${p.han ? esc(p.han) : '<span class="empty">漢名未填</span>'}</div></div></div>
-    ${p.gender ? `<span class="g">${GENDER[p.gender]}</span>` : ''}
+    <div class="chips">${FT.isAdopted(p) ? '<span class="ad">收養</span>' : ''}${p.tribe ? `<span class="tr">${esc(FT.tribeShort(p.tribe))}</span>` : ''}${p.gender ? `<span class="g">${GENDER[p.gender]}</span>` : ''}</div>
   </div>`;
 }
-function linesSVG(L) {
+function linesSVG(L, t) {
   let s = '';
   L.lines.forEach(l => {
     if (l.type === 'marry') {
-      s += `<line x1="${l.x1}" y1="${l.y1 - 3}" x2="${l.x2}" y2="${l.y2 - 3}" stroke="#a8231c" stroke-width="3" ${l.adjacent ? '' : 'stroke-dasharray="8 6"'}/>`;
-      s += `<line x1="${l.x1}" y1="${l.y1 + 3}" x2="${l.x2}" y2="${l.y2 + 3}" stroke="#a8231c" stroke-width="3" ${l.adjacent ? '' : 'stroke-dasharray="8 6"'}/>`;
+      if (t && FT.isDivorced(t, l.a, l.b)) {
+        const mx = (l.x1 + l.x2) / 2, y = l.y1;
+        s += `<line x1="${l.x1}" y1="${y}" x2="${l.x2}" y2="${y}" stroke="#8a7b70" stroke-width="3" stroke-dasharray="7 5"/>`;
+        s += `<path d="M${mx - 7} ${y + 9} L${mx - 1} ${y - 9} M${mx + 1} ${y + 9} L${mx + 7} ${y - 9}" stroke="#6f625a" stroke-width="2.6" fill="none"/>`;
+        s += `<text x="${mx}" y="${y - 13}" font-size="14" font-weight="700" fill="#6f625a" text-anchor="middle" font-family="Noto Sans TC, sans-serif">離婚</text>`;
+      } else {
+        s += `<line x1="${l.x1}" y1="${l.y1 - 3}" x2="${l.x2}" y2="${l.y2 - 3}" stroke="#a8231c" stroke-width="3" ${l.adjacent ? '' : 'stroke-dasharray="8 6"'}/>`;
+        s += `<line x1="${l.x1}" y1="${l.y1 + 3}" x2="${l.x2}" y2="${l.y2 + 3}" stroke="#a8231c" stroke-width="3" ${l.adjacent ? '' : 'stroke-dasharray="8 6"'}/>`;
+      }
     } else {
       const xs = [l.ax, ...l.kx];
-      s += `<path d="M${l.ax} ${l.startY} V${l.busY} M${Math.min(...xs)} ${l.busY} H${Math.max(...xs)} ${l.kx.map(x => `M${x} ${l.busY} V${l.ky}`).join(' ')}" fill="none" stroke="#5b4a3f" stroke-width="2.6" stroke-linejoin="round"/>`;
+      s += `<path d="M${l.ax} ${l.startY} V${l.busY} M${Math.min(...xs)} ${l.busY} H${Math.max(...xs)}" fill="none" stroke="#5b4a3f" stroke-width="2.6" stroke-linejoin="round"/>`;
+      l.kx.forEach((x, i) => {
+        const kid = t && t.people[l.kids[i]], ad = FT.isAdopted(kid);
+        s += `<path d="M${x} ${l.busY} V${l.ky}" fill="none" stroke="${ad ? '#2e6b3f' : '#5b4a3f'}" stroke-width="${ad ? 3 : 2.6}" ${ad ? 'stroke-dasharray="6 5"' : ''}/>`;
+      });
     }
   });
   return s;
@@ -1012,7 +1079,7 @@ function buildTree(container, svg, t) {
   const L = getLayout(t), K = FT.kinMap(t);
   container.innerHTML = Object.values(t.people).map(p => cardHTML(p, K[p.id], L.pos[p.id], t)).join('');
   svg.setAttribute('width', L.width); svg.setAttribute('height', L.height);
-  svg.innerHTML = linesSVG(L);
+  svg.innerHTML = linesSVG(L, t);
   return L;
 }
 function renderTree() {
@@ -1131,6 +1198,23 @@ function zoomAt(f, cx, cy) {
   }, { passive: false });
 })();
 
+/* ---------- 族籍選單 ---------- */
+function tribeOptions(cur) {
+  const inList = FT.TRIBES.includes(cur);
+  return `<option value="" ${!cur ? 'selected' : ''}>（未填）</option>` + FT.TRIBES.map(x => `<option ${x === cur ? 'selected' : ''}>${x}</option>`).join('') +
+    `<option value="__other" ${cur && !inList ? 'selected' : ''}>其他（自己填）</option>`;
+}
+function bindTribe(sel, other, person, onChange) {
+  const sync = () => { other.classList.toggle('hidden', sel.value !== '__other'); };
+  sync();
+  sel.onchange = () => {
+    if (sel.value === '__other') { person.tribe = other.value.trim(); sync(); other.focus(); }
+    else { person.tribe = sel.value; other.value = ''; sync(); }
+    onChange();
+  };
+  other.oninput = () => { person.tribe = other.value.trim(); onChange(); };
+}
+
 /* ---------- 編輯面板 ---------- */
 const ADD_BTNS = [
   ['father', '＋爸爸'], ['mother', '＋媽媽'], ['spouse', '＋配偶'],
@@ -1170,6 +1254,7 @@ function renderPanel(focusName) {
       </div>
       <div class="preview" id="qPv" style="margin-top:0"></div>
       <div class="qrow"><span style="font-weight:700">性別</span><div class="seg" id="qG"><button class="M ${np.gender === 'M' ? 'on' : ''}" data-g="M">男</button><button class="F ${np.gender === 'F' ? 'on' : ''}" data-g="F">女</button></div>
+        <select id="qTribe" title="族籍">${tribeOptions(np.tribe)}</select><input type="text" id="qTribeO" class="hidden" style="max-width:120px;font-size:16px;padding:6px;border:2px solid #cdbba5;border-radius:10px" placeholder="族籍" value="${FT.TRIBES.includes(np.tribe) ? '' : esc(np.tribe)}">
         <button class="btn small" id="qGo" style="margin-left:auto">編輯這個人 →</button></div>
     </div>` : '';
   const fieldsHTML = `
@@ -1187,11 +1272,25 @@ function renderPanel(focusName) {
         <label>性別</label>
         <div class="seg" id="fG"><button class="M ${p.gender === 'M' ? 'on' : ''}" data-g="M" ${dis}>男</button><button class="F ${p.gender === 'F' ? 'on' : ''}" data-g="F" ${dis}>女</button></div>
       </div>
+    </div>
+    <div class="field">
+      <label for="fTribe">族籍</label>
+      <select id="fTribe" ${dis}>${tribeOptions(p.tribe)}</select>
+      <input type="text" id="fTribeO" class="hidden" style="margin-top:6px" value="${FT.TRIBES.includes(p.tribe) ? '' : esc(p.tribe)}" placeholder="例如：越南、印尼……" autocomplete="off" ${dis}>
     </div>`;
   const addHTML = ro ? '' : `<div class="sect">幫「${esc(displayName(p, tree.people) || K.zh)}」加家人</div>
     <div class="addgrid">${ADD_BTNS.map(([r, l]) => `<button data-rel="${r}" ${(r === 'father' && p.fatherId) || (r === 'mother' && p.motherId) ? 'disabled' : ''}>${l}</button>`).join('')}</div>
     ${np ? '<div class="note" style="font-size:15px;color:#6f625a;margin-top:-6px">加好的人會留在「' + esc(displayName(p, tree.people) || K.zh) + '」這裡，可以接著一直加。</div>' : ''}`;
-  const moreHTML = `<details class="more" ${p.fullOverride ? 'open' : ''}><summary>更多設定（自己打完整族名${hasParents ? '、排行' : ''}）</summary>
+  const nmOf = id => esc(displayName(tree.people[id], tree.people) || '（未填名字）');
+  const relRows = [
+    ...p.spouses.filter(s => tree.people[s]).map(s => { const dv = FT.isDivorced(tree, p.id, s);
+      return `<div class="rel"><span>和「${nmOf(s)}」的婚姻</span><div class="seg2" data-sp="${s}"><button data-v="0" class="${dv ? '' : 'on'}" ${dis}>婚姻中</button><button data-v="1" class="${dv ? 'on warn' : ''}" ${dis}>已離婚</button></div></div>`; }),
+    ...[['F', p.fatherId, '爸爸', p.adoptF], ['M', p.motherId, '媽媽', p.adoptM]].filter(x => x[1] && tree.people[x[1]]).map(([k, id, lab, ad]) =>
+      `<div class="rel"><span>和${lab}「${nmOf(id)}」</span><div class="seg2" data-ad="${k}"><button data-v="0" class="${ad ? '' : 'on'}" ${dis}>親生</button><button data-v="1" class="${ad ? 'on' : ''}" ${dis}>收養</button></div></div>`),
+  ];
+  const anySpecial = (p.divorced || []).length || p.adoptF || p.adoptM;
+  const relHTML = relRows.length ? `<details class="more" ${anySpecial ? 'open' : ''}><summary>特殊關係（離婚、收養）${anySpecial ? '・已標註' : ''}</summary>${relRows.join('')}</details>` : '';
+  const moreHTML = relHTML + `<details class="more" ${p.fullOverride ? 'open' : ''}><summary>更多設定（自己打完整族名${hasParents ? '、排行' : ''}）</summary>
       <label class="check"><input type="checkbox" id="fOv" ${p.fullOverride ? 'checked' : ''} ${dis}> 自己打完整的族名（家裡的寫法不一樣時）</label>
       <div class="field ${p.fullOverride ? '' : 'hidden'}" id="ovWrap">
         <label for="fFull">完整族名</label>
@@ -1213,7 +1312,11 @@ function renderPanel(focusName) {
     else if (p.given && fg) how = `${esc(p.given)}（自己）＋ ${esc(fg)}（爸爸的名字）自動接上`;
     else if (p.given && !father) how = '還沒加爸爸，所以只有自己的名字';
     else if (p.given) how = '爸爸的族名還沒填，填好就會自動接上';
-    $('#pv').innerHTML = `完整族名：<b>${tn ? esc(tn) : '—'}</b><br>${how}`;
+    let tnote = '';
+    if (p.tribe === '漢族' || p.tribe === '新住民') tnote = `${esc(p.tribe)}的家人沒有族名也沒關係，填漢名就好。`;
+    else if (p.tribe && !FT.PATRONYMIC.includes(p.tribe) && !p.fullOverride) tnote = `${esc(p.tribe)}的命名方式不一定是「子連父名」。如果不對，請到「更多設定」自己打完整族名。`;
+    if (FT.isAdopted(p) && !p.fullOverride && p.adoptF) tnote += (tnote ? '<br>' : '') + '收養的孩子預設接上養父的名字；家裡用的不一樣，請到「更多設定」自己打。';
+    $('#pv').innerHTML = `完整族名：<b>${tn ? esc(tn) : '—'}</b><br>${how}${tnote ? `<div class="tnote">${tnote}</div>` : ''}`;
   };
   updPreview();
   const changed = () => { if (!viewing) saveMine(); renderTree(); updPreview(); refreshHeading(); };
@@ -1235,6 +1338,15 @@ function renderPanel(focusName) {
   panel.querySelectorAll('#fG button').forEach(b => b.onclick = () => {
     p.gender = b.dataset.g; panel.querySelectorAll('#fG button').forEach(x => x.classList.toggle('on', x === b)); changed();
   });
+  bindTribe($('#fTribe'), $('#fTribeO'), p, changed);
+  panel.querySelectorAll('.seg2[data-sp] button').forEach(b => b.onclick = () => {
+    FT.setDivorced(tree, p.id, b.parentNode.dataset.sp, b.dataset.v === '1');
+    saveMine(); renderTree(); renderPanel(); refreshHeading();
+  });
+  panel.querySelectorAll('.seg2[data-ad] button').forEach(b => b.onclick = () => {
+    p[b.parentNode.dataset.ad === 'F' ? 'adoptF' : 'adoptM'] = b.dataset.v === '1';
+    saveMine(); renderTree(); renderPanel(); refreshHeading();
+  });
   if (np) {
     const updQ = () => {
       const tn = FT.tribalName(np, tree.people);
@@ -1250,6 +1362,7 @@ function renderPanel(focusName) {
     panel.querySelectorAll('#qG button').forEach(b => b.onclick = () => {
       np.gender = b.dataset.g; panel.querySelectorAll('#qG button').forEach(x => x.classList.toggle('on', x === b)); qChanged();
     });
+    bindTribe($('#qTribe'), $('#qTribeO'), np, qChanged);
     $('#qGo').onclick = () => { const id = np.id; select(id); focusPerson(id, Math.max(view.s, 0.8)); };
   }
   const bo = $('#fBo'); if (bo) bo.oninput = e => { const v = parseInt(e.target.value, 10); p.bo = isNaN(v) ? null : v; changed(); };
@@ -1299,6 +1412,7 @@ function welcome() {
     </div>
     <div class="field"><label for="wGiven">我的族名（自己的名字）</label><input type="text" id="wGiven" placeholder="例如：Sayun" autocomplete="off" autocapitalize="words"><div class="note">沒有族名也沒關係，可以先空著。</div></div>
     <div class="field"><label for="wHan">我的漢名</label><input type="text" id="wHan" placeholder="例如：林小芸" autocomplete="off"></div>
+    <div class="field"><label for="wTribe">我的族籍</label><select id="wTribe">${tribeOptions('泰雅族')}</select><input type="text" id="wTribeO" class="hidden" style="margin-top:6px" placeholder="請輸入族籍" autocomplete="off"></div>
     <div class="field"><label>我的性別</label><div class="seg" id="wG"><button class="M" data-g="M">男</button><button class="F" data-g="F">女</button></div></div>
     <div id="wErr" style="color:#a8231c;font-weight:700"></div>`,
     [{ label: '📂 我已經有檔案', onClick: () => { $('#fileOne').click(); return false; } },
@@ -1306,12 +1420,14 @@ function welcome() {
         const cls = $('#wCls').value.trim(), seat = $('#wSeat').value.trim(), given = $('#wGiven').value.trim(), han = $('#wHan').value.trim();
         const err = !cls || !seat ? '請填班級和座號' : (!given && !han) ? '族名和漢名至少填一個' : !g ? '請選性別' : '';
         if (err) { $('#wErr').textContent = err; return false; }
-        mine = FT.newTree({ given, han, gender: g });
+        const tsel = $('#wTribe').value, tribe = tsel === '__other' ? $('#wTribeO').value.trim() : tsel;
+        mine = FT.newTree({ given, han, gender: g, tribe });
         mine.student = { cls, seat };
         tree = mine; viewing = null; saveMine(); renderTree(); fitView(); select(mine.meId);
         toast('建好了！接下來在右邊（或下方）按「＋爸爸」「＋媽媽」', 4500);
       } }], { locked: true });
   m.el.querySelectorAll('#wG button').forEach(b => b.onclick = () => { g = b.dataset.g; m.el.querySelectorAll('#wG button').forEach(x => x.classList.toggle('on', x === b)); });
+  $('#wTribe').onchange = () => { $('#wTribeO').classList.toggle('hidden', $('#wTribe').value !== '__other'); };
   setTimeout(() => $('#wCls').focus(), 50);
 }
 
@@ -1379,18 +1495,18 @@ function rosterHTML(t, only) {
   const K = FT.kinMap(t), G = FT.generations(t), L = FT.layout(t, only ? { only } : {});
   const ps = Object.values(t.people).filter(p => !only || only.has(p.id)).sort((a, b) => (G[a.id] - G[b.id]) || (L.pos[a.id].x - L.pos[b.id].x));
   const nm = id => id && t.people[id] ? esc(displayName(t.people[id], t.people) || '（未填）') : '';
-  return `<table class="roster"><thead><tr><th>代</th><th>稱謂</th><th>族語稱謂</th><th>族名</th><th>漢名</th><th>性別</th><th>爸爸</th><th>媽媽</th></tr></thead><tbody>
-    ${ps.map(p => { const g = G[p.id]; return `<tr><td>${g === 0 ? '我這代' : g < 0 ? '上 ' + (-g) + ' 代' : '下 ' + g + ' 代'}</td><td>${esc(K[p.id].zh)}</td><td><i>${esc(K[p.id].term)}</i></td><td><b>${esc(FT.tribalName(p, t.people))}</b></td><td>${esc(p.han)}</td><td>${GENDER[p.gender] || ''}</td><td>${nm(p.fatherId)}</td><td>${nm(p.motherId)}</td></tr>`; }).join('')}</tbody></table>`;
+  return `<table class="roster"><thead><tr><th>代</th><th>稱謂</th><th>族語稱謂</th><th>族名</th><th>漢名</th><th>性別</th><th>族籍</th><th>爸爸</th><th>媽媽</th><th>備註</th></tr></thead><tbody>
+    ${ps.map(p => { const g = G[p.id]; return `<tr><td>${g === 0 ? '我這代' : g < 0 ? '上 ' + (-g) + ' 代' : '下 ' + g + ' 代'}</td><td>${esc(K[p.id].zh)}</td><td><i>${esc(K[p.id].term)}</i></td><td><b>${esc(FT.tribalName(p, t.people))}</b></td><td>${esc(p.han)}</td><td>${GENDER[p.gender] || ''}</td><td>${esc(p.tribe)}</td><td>${nm(p.fatherId)}</td><td>${nm(p.motherId)}</td><td>${[p.fatherId && p.adoptF ? '爸爸是養父' : '', p.motherId && p.adoptM ? '媽媽是養母' : '', ...(p.divorced || []).filter(s => t.people[s]).map(s => '與 ' + nm(s) + ' 離婚')].filter(Boolean).join('；')}</td></tr>`; }).join('')}</tbody></table>`;
 }
-function pageHead(t, sub, extra) {
+function pageHead(t, sub, extra, legend) {
   const me = t.people[t.meId], st = t.student || {};
-  return `<div class="weave pw"></div><div class="ph"><div><div class="s">宜蘭縣立大同國中・泰雅族譜建置系統</div><div class="t">我的家族樹${sub ? '　' + sub : ''}${extra || ''}</div></div>
+  return `<div class="weave pw"></div><div class="ph"><div><div class="s">宜蘭縣立大同國中・泰雅族譜建置系統</div><div class="t">我的家族樹${sub ? '　' + sub : ''}${extra || ''}</div></div>${legend || ''}
     <div class="r">${esc(st.cls || '')} 班 ${esc(st.seat || '')} 號　<b>${esc(displayName(me, t.people))}</b>${me.han && FT.tribalName(me, t.people) ? '（' + esc(me.han) + '）' : ''}<br>共 ${Object.keys(t.people).length} 人・${new Date().toLocaleDateString('zh-TW')}</div></div>`;
 }
 // 把整棵樹畫成一張 SVG（列印用）
 function treeBody(t, only) {
   const L = FT.layout(t, only ? { only } : {}), K = FT.kinMap(t), D = L.dim;
-  let body = linesSVG(L);
+  let body = linesSVG(L, t);
   const fit = (s, max) => { s = s || ''; return s.length > max ? s.slice(0, max - 1) + '…' : s; };
   L.ids.forEach(id => {
     const p = t.people[id], { x, y, gen } = L.pos[id], k = K[id], me = id === t.meId;
@@ -1406,7 +1522,12 @@ function treeBody(t, only) {
       <svg x="${x + 13}" y="${y + 37}" width="60" height="60" viewBox="0 0 60 60"><g ${isBlank(p) ? 'opacity=".45"' : ''}>${avatarSVG(p.gender, ageOf(gen))}</g><path d="M-1 -1H61V61H-1Z M30 0.5A29.5 29.5 0 1 0 30.01 0.5Z" fill="#fff" fill-rule="evenodd"/></svg>
       <text x="${x + 81}" y="${y + 60}" font-size="${tnSize}" font-weight="900" fill="${tn ? '#1f1a17' : '#7a6c62'}">${tn ? esc(fit(tn, 15)) : '（族名未填）'}</text>
       <text x="${x + 81}" y="${y + 86}" font-size="16" fill="${p.han ? '#4b403a' : '#7a6c62'}">${p.han ? esc(fit(p.han, 7)) : '漢名未填'}</text>
-      ${p.gender ? `<rect x="${x + D.W - 34}" y="${y + D.H - 28}" width="26" height="21" rx="6" fill="${col}"/><text x="${x + D.W - 21}" y="${y + D.H - 12}" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">${GENDER[p.gender]}</text>` : ''}
+      ${(() => { let cx = x + D.W - 8, o = '';
+        const chip = (txt, fill, stroke, color, dash) => { const w = txt.length * 14 + 12; cx -= w; o += `<rect x="${cx}" y="${y + D.H - 28}" width="${w}" height="21" rx="6" fill="${fill}" ${stroke ? `stroke="${stroke}" stroke-width="1.5"` : ''} ${dash ? 'stroke-dasharray="4 3"' : ''}/><text x="${cx + w / 2}" y="${y + D.H - 12}" font-size="14" font-weight="700" fill="${color}" text-anchor="middle">${esc(txt)}</text>`; cx -= 4; };
+        if (p.gender) chip(GENDER[p.gender], col, '', '#fff');
+        if (p.tribe) chip(FT.tribeShort(p.tribe), '#f4ece0', '#cdbba5', '#5b4a3f');
+        if (FT.isAdopted(p)) chip('收養', '#fff', '#2e6b3f', '#2e6b3f', true);
+        return o; })()}
     </g>`;
   });
   return { L, body };
@@ -1455,7 +1576,10 @@ function renderPages(container, list, o) {
         for (let r = 0; r < pg.rows; r++) for (let c = 0; c < pg.cols; c++) m += `<i class="${r === pg.r && c === pg.c ? 'on' : ''}"></i>`;
         extra = `　<span style="font-size:18px">拼貼 ${pg.r + 1}-${pg.c + 1}（共 ${pg.rows}×${pg.cols} 張）</span>${m}</span>`;
       }
-      el.innerHTML = pageHead(t, pg.title, extra) + `<div class="treebox ${pg.kind === 'tile' ? 'cut' : ''}">${svgWrap(pg.vb, plan.body + (pg.extraBody || ''))}</div>`;
+      const ids = plan.only ? [...plan.only] : Object.keys(t.people);
+      const hasDiv = ids.some(i => (t.people[i].divorced || []).length), hasAd = ids.some(i => FT.isAdopted(t.people[i]));
+      const legend = hasDiv || hasAd ? `<div class="legend">紅色雙線＝夫妻${hasDiv ? '　灰色虛線＋「離婚」＝已離婚' : ''}${hasAd ? '　綠色虛線＝收養' : ''}</div>` : '';
+      el.innerHTML = pageHead(t, pg.title, extra, legend) + `<div class="treebox ${pg.kind === 'tile' ? 'cut' : ''}">${svgWrap(pg.vb, plan.body + (pg.extraBody || ''))}</div>`;
       container.appendChild(el);
     });
     if (o.roster) {
@@ -1624,6 +1748,8 @@ $('#bHelp').onclick = () => modal('❓ 使用說明', `
   <ol style="margin:0;padding-left:1.4em">
     <li>第一次打開：填班級、座號、自己的族名或漢名、性別，按「開始」。</li>
     <li><b>點一下任何一張卡片</b>，在旁邊按「＋爸爸」「＋媽媽」「＋哥哥」……就會長出新卡片，在綠色框裡填名字。畫面會停在原本那個人，可以接著一直加。</li>
+    <li>每個人可以選<b>族籍</b>（16 族、漢族、新住民或自己填），卡片右下角會顯示。</li>
+    <li>點一個人，在「特殊關係」可以標註<b>離婚</b>（夫妻線變成灰色虛線）或<b>收養</b>（綠色虛線，卡片標「收養」）。</li>
     <li>族名欄<b>只填這個人自己的名字</b>，爸爸的名字會自動接在後面（子連父名）。家裡寫法不一樣時，到「更多設定」自己打完整族名。</li>
     <li>資料會<b>自動存在這台裝置</b>。做完或下課前，按「💾 匯出檔案」，把檔案交給老師。</li>
     <li>換平板或資料不見時，按「📂 開啟檔案」打開之前匯出的檔案，就能接著做。</li>
