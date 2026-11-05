@@ -1,0 +1,194 @@
+{
+ "app": "datong-family-tree",
+ "version": 1,
+ "student": {
+  "cls": "801",
+  "seat": "5"
+ },
+ "meId": "pmw26pxwe1srb",
+ "people": {
+  "pmw26pxwe1srb": {
+   "id": "pmw26pxwe1srb",
+   "given": "Sayun",
+   "han": "林小芸",
+   "gender": "F",
+   "bo": 2,
+   "fullOverride": "",
+   "fatherId": "pmw26pyfs2fkz",
+   "motherId": "pmw26pyru3zy9",
+   "spouses": []
+  },
+  "pmw26pyfs2fkz": {
+   "id": "pmw26pyfs2fkz",
+   "given": "Watan",
+   "han": "林大明",
+   "gender": "M",
+   "bo": 2,
+   "fullOverride": "",
+   "fatherId": "pmw26pzqz61aa",
+   "motherId": "pmw26q0357sag",
+   "spouses": [
+    "pmw26pyru3zy9"
+   ]
+  },
+  "pmw26pyru3zy9": {
+   "id": "pmw26pyru3zy9",
+   "given": "Ciwas",
+   "han": "高美玉",
+   "gender": "F",
+   "bo": 1,
+   "fullOverride": "",
+   "fatherId": "pmw26q0zfa4xu",
+   "motherId": "pmw26q1bbbtpt",
+   "spouses": [
+    "pmw26pyfs2fkz"
+   ]
+  },
+  "pmw26pz3c4xtf": {
+   "id": "pmw26pz3c4xtf",
+   "given": "Yukan",
+   "han": "林小強",
+   "gender": "M",
+   "bo": 1,
+   "fullOverride": "",
+   "fatherId": "pmw26pyfs2fkz",
+   "motherId": "pmw26pyru3zy9",
+   "spouses": []
+  },
+  "pmw26pzfe5604": {
+   "id": "pmw26pzfe5604",
+   "given": "Yaway",
+   "han": "林小妹",
+   "gender": "F",
+   "bo": 3,
+   "fullOverride": "",
+   "fatherId": "pmw26pyfs2fkz",
+   "motherId": "pmw26pyru3zy9",
+   "spouses": []
+  },
+  "pmw26pzqz61aa": {
+   "id": "pmw26pzqz61aa",
+   "given": "Yumin",
+   "han": "林阿公",
+   "gender": "M",
+   "bo": null,
+   "fullOverride": "",
+   "fatherId": "pmw26q2jcfkgm",
+   "motherId": null,
+   "spouses": [
+    "pmw26q0357sag"
+   ]
+  },
+  "pmw26q0357sag": {
+   "id": "pmw26q0357sag",
+   "given": "Lawa",
+   "han": "",
+   "gender": "F",
+   "bo": null,
+   "fullOverride": "",
+   "fatherId": null,
+   "motherId": null,
+   "spouses": [
+    "pmw26pzqz61aa"
+   ]
+  },
+  "pmw26q0dl83g5": {
+   "id": "pmw26q0dl83g5",
+   "given": "Hetay",
+   "han": "林大雄",
+   "gender": "M",
+   "bo": 1,
+   "fullOverride": "",
+   "fatherId": "pmw26pzqz61aa",
+   "motherId": "pmw26q0357sag",
+   "spouses": [
+    "pmw26q1xndy1v"
+   ]
+  },
+  "pmw26q0or96q6": {
+   "id": "pmw26q0or96q6",
+   "given": "Pisuy",
+   "han": "",
+   "gender": "F",
+   "bo": 3,
+   "fullOverride": "",
+   "fatherId": "pmw26pzqz61aa",
+   "motherId": "pmw26q0357sag",
+   "spouses": []
+  },
+  "pmw26q0zfa4xu": {
+   "id": "pmw26q0zfa4xu",
+   "given": "Batu",
+   "han": "高金山",
+   "gender": "M",
+   "bo": null,
+   "fullOverride": "",
+   "fatherId": null,
+   "motherId": null,
+   "spouses": [
+    "pmw26q1bbbtpt"
+   ]
+  },
+  "pmw26q1bbbtpt": {
+   "id": "pmw26q1bbbtpt",
+   "given": "Kumu",
+   "han": "",
+   "gender": "F",
+   "bo": null,
+   "fullOverride": "",
+   "fatherId": null,
+   "motherId": null,
+   "spouses": [
+    "pmw26q0zfa4xu"
+   ]
+  },
+  "pmw26q1licskv": {
+   "id": "pmw26q1licskv",
+   "given": "Tali",
+   "han": "高志明",
+   "gender": "M",
+   "bo": 2,
+   "fullOverride": "",
+   "fatherId": "pmw26q0zfa4xu",
+   "motherId": "pmw26q1bbbtpt",
+   "spouses": []
+  },
+  "pmw26q1xndy1v": {
+   "id": "pmw26q1xndy1v",
+   "given": "Iwan",
+   "han": "",
+   "gender": "F",
+   "bo": null,
+   "fullOverride": "",
+   "fatherId": null,
+   "motherId": null,
+   "spouses": [
+    "pmw26q0dl83g5"
+   ]
+  },
+  "pmw26q28kekbl": {
+   "id": "pmw26q28kekbl",
+   "given": "Masa",
+   "han": "",
+   "gender": "M",
+   "bo": 1,
+   "fullOverride": "",
+   "fatherId": "pmw26q0dl83g5",
+   "motherId": "pmw26q1xndy1v",
+   "spouses": []
+  },
+  "pmw26q2jcfkgm": {
+   "id": "pmw26q2jcfkgm",
+   "given": "Losin",
+   "han": "",
+   "gender": "M",
+   "bo": null,
+   "fullOverride": "",
+   "fatherId": null,
+   "motherId": null,
+   "spouses": []
+  }
+ },
+ "terms": {},
+ "updatedAt": "2026-11-04T14:01:13.214Z"
+}
