@@ -722,28 +722,49 @@ const FT = (() => {
     ids.forEach(i => people[i].spouses.forEach(s => { if (people[s] && gen[s] === gen[i]) parent[find(i)] = find(s); }));
     const groups = {};
     ids.forEach(i => { const r = find(i); (groups[r] = groups[r] || []).push(i); });
-    const blocks = Object.values(groups).map(members => {
-      let ordered = members;
-      if (members.length === 2) {
-        const [x, y] = members;
-        ordered = (people[x].gender === 'F' && people[y].gender !== 'F') ? [y, x] : [x, y];
-      } else if (members.length > 2) {
-        // 一人多位配偶：中心人物放中間
-        const hub = members.slice().sort((a, b) => people[b].spouses.length - people[a].spouses.length)[0];
-        const others = members.filter(m => m !== hub);
-        const half = Math.ceil(others.length / 2);
-        ordered = [...others.slice(0, half), hub, ...others.slice(half)];
+    // 探索順序（從「我」出發），排夫妻順序和初始位置都會用到
+    const order = {}; let k = 0;
+    { const seen = new Set([startId]); const q = [startId];
+      while (q.length) { const u = q.shift(); order[u] = k++; for (const [v] of nb(u)) if (!seen.has(v)) { seen.add(v); q.push(v); } }
+      ids.forEach(i => { if (order[i] == null) order[i] = k++; }); }
+    // 夫妻區塊內的左右順序
+    function orderSpouses(members) {
+      if (members.length === 1) return members;
+      const set = new Set(members);
+      const adj = {}; members.forEach(m => adj[m] = people[m].spouses.filter(s => set.has(s)));
+      const deg = m => adj[m].length;
+      // 男左女右的「順眼程度」
+      const score = arr => arr.reduce((sc, m, i) => sc + (i && people[arr[i - 1]].gender === 'M' && people[m].gender === 'F' ? 1 : 0), 0);
+      const isPath = members.every(m => deg(m) <= 2) && members.filter(m => deg(m) === 1).length === 2;
+      if (isPath) {
+        // 一串婚姻（例如 繼父－媽媽－爸爸－繼母）：照順序排，每對夫妻都相鄰
+        const ends = members.filter(m => deg(m) === 1).sort((a, b) => order[a] - order[b]);
+        const path = [ends[0]]; let prev = null, cur = ends[0];
+        while (path.length < members.length) {
+          const nx = adj[cur].find(v => v !== prev && !path.includes(v)); if (!nx) break;
+          path.push(nx); prev = cur; cur = nx;
+        }
+        if (path.length === members.length) {
+          const rev = path.slice().reverse();
+          return score(rev) > score(path) ? rev : path;
+        }
       }
+      // 一個人有好幾位配偶：這個人放中間
+      const hub = members.slice().sort((a, b) => (deg(b) - deg(a)) || (order[a] - order[b]))[0];
+      const seen = new Set([hub]), out = [hub];
+      const visit = u => adj[u].sort((a, b) => order[a] - order[b]).forEach(v => { if (!seen.has(v)) { seen.add(v); out.push(v); visit(v); } });
+      visit(hub);
+      members.forEach(m => { if (!seen.has(m)) out.push(m); });
+      const others = out.slice(1), half = Math.ceil(others.length / 2);
+      return [...others.slice(0, half).reverse(), hub, ...others.slice(half)];
+    }
+    const blocks = Object.values(groups).map(members => {
+      const ordered = orderSpouses(members);
       return { members: ordered, gen: gen[members[0]], w: ordered.length * D.W + (ordered.length - 1) * D.coupleGap, x: 0 };
     });
     const blockOf = {}; blocks.forEach(b => b.members.forEach(m => blockOf[m] = b));
     const gens = [...new Set(blocks.map(b => b.gen))].sort((a, b) => a - b);
     const rows = {}; gens.forEach(g => rows[g] = []);
-    // 初始順序：從「我」出發的探索順序
-    const order = {}; let k = 0;
-    const seen = new Set([startId]); const q = [startId];
-    while (q.length) { const u = q.shift(); order[u] = k++; for (const [v] of nb(u)) if (!seen.has(v)) { seen.add(v); q.push(v); } }
-    ids.forEach(i => { if (order[i] == null) order[i] = k++; });
     blocks.forEach(b => rows[b.gen].push(b));
     gens.forEach(g => rows[g].sort((a, b) => Math.min(...a.members.map(m => order[m])) - Math.min(...b.members.map(m => order[m]))));
 
