@@ -285,5 +285,61 @@ const t10 = FT.newTree({ given: 'Hub', gender: 'M' });
 const L10 = FT.layout(t10); const hubX = L10.pos[t10.meId].x;
 const others10 = Object.keys(t10.people).filter(i => i !== t10.meId).map(i => L10.pos[i].x);
 ok(others10.some(x => x < hubX) && others10.some(x => x > hubX), '三位配偶時，本人在中間');
+
+// ===== 排版：兄弟姊妹成組、照排行（2026-11-05） =====
+function sibCheck(tt, label) {
+  const L = FT.layout(tt), PP = tt.people;
+  const units = {};
+  for (const p of Object.values(PP)) { if (!p.fatherId && !p.motherId) continue; const k = (p.fatherId || '') + '|' + (p.motherId || ''); (units[k] = units[k] || []).push(p.id); }
+  // 已婚、而且配偶也有填父母：會移到靠配偶那一邊，不算排行錯
+  const bridge = id => PP[id].spouses.some(s => L.pos[s] && L.pos[s].y === L.pos[id].y && (PP[s].fatherId || PP[s].motherId));
+  let split = 0, wrong = 0;
+  for (const kids of Object.values(units)) {
+    if (kids.length < 2) continue;
+    const y = L.pos[kids[0]].y, xs = kids.map(i => L.pos[i].x), lo = Math.min(...xs), hi = Math.max(...xs);
+    const mates = new Set(kids.flatMap(c => PP[c].spouses));
+    if (Object.keys(PP).some(i => L.pos[i].y === y && L.pos[i].x > lo && L.pos[i].x < hi && !kids.includes(i) && !mates.has(i))) split++;
+    const bo = kids.slice().sort((a, b) => L.pos[a].x - L.pos[b].x).filter(i => !bridge(i)).map(i => PP[i].bo).filter(v => v != null);
+    if (bo.some((v, i) => i && v < bo[i - 1])) wrong++;
+  }
+  eq(split, 0, label + '：兄弟姊妹中間沒有別家的人');
+  eq(wrong, 0, label + '：兄弟姊妹照排行由左到右');
+  return L;
+}
+{
+  // 照 2026-11-05 回報的截圖：曾祖父母底下 5 個孩子，每人都有孩子
+  const ts = FT.newTree({ given: 'Watan', gender: 'M' });
+  const A = (a, r) => FT.addRelative(ts, a, r).id;
+  const d = A(ts.meId, 'father'); A(ts.meId, 'mother');
+  const gf = A(d, 'father'); A(d, 'mother'); A(gf, 'father'); A(gf, 'mother');
+  const sb = [A(gf, 'olderSister'), A(gf, 'olderSister'), A(gf, 'olderBrother'), A(gf, 'olderBrother')];
+  sb.forEach((s, i) => { for (let j = 0; j < (i < 2 ? 2 : 3); j++) A(s, j % 2 ? 'son' : 'daughter'); });
+  const a1 = A(d, 'olderBrother'); A(a1, 'son'); A(a1, 'daughter');
+  const a2 = A(d, 'youngerSister'); A(a2, 'spouse'); A(a2, 'son'); A(a2, 'daughter');
+  sibCheck(ts, '截圖家族');
+  // 改排行後順序跟著變
+  const kids = FT.childrenOf(sb[2], ts.people).sort((x, y) => x.bo - y.bo);
+  kids[0].bo = 9; const L2 = FT.layout(ts);
+  ok(L2.pos[kids[0].id].x > L2.pos[kids[1].id].x, '把老大的排行改成最後，他就移到最右邊');
+}
+for (const n of [3, 6]) {
+  const tb = bigTree(n), N = Object.keys(tb.people).length;
+  const L = sibCheck(tb, '大家族 ' + N + ' 人');
+  // 不會越排越寬：寬度不超過「每一代全部排緊」的 1.6 倍
+  const rowW = {}; for (const id in L.pos) rowW[L.pos[id].y] = (rowW[L.pos[id].y] || 0) + L.dim.W + L.dim.familyGap;
+  ok(L.width < 1.6 * Math.max(...Object.values(rowW)), '大家族 ' + N + ' 人：寬度合理（' + Math.round(L.width) + '）');
+}
+for (const f of ['sample_15.json', 'sample_155.json']) sibCheck(FT.validate(JSON.parse(require('fs').readFileSync(__dirname + '/' + f, 'utf8'))), f);
+
+// 已過世：存檔、開檔都保留
+{
+  const td = FT.newTree({ given: 'A', gender: 'M' });
+  const f = FT.addRelative(td, td.meId, 'father').id; td.people[f].deceased = true;
+  const back = FT.validate(JSON.parse(JSON.stringify(td)));
+  eq(back.people[f].deceased, true, '已過世：匯出再開啟後仍是已過世');
+  eq(back.people[td.meId].deceased, false, '沒勾的人預設不是已過世');
+  const old = JSON.parse(JSON.stringify(td)); delete old.people[f].deceased;
+  eq(FT.validate(old).people[f].deceased, false, '舊版檔案（沒有這個欄位）可以正常開啟');
+}
 console.log(`\n✓ ${pass}/${pass + fail} 通過` + (fail ? `（${fail} 項失敗）` : ''));
 process.exit(fail ? 1 : 0);

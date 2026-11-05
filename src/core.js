@@ -54,6 +54,7 @@ const FT = (() => {
       adoptF: !!o.adoptF,          // 和爸爸是收養關係
       adoptM: !!o.adoptM,          // 和媽媽是收養關係
       tribe: o.tribe || '',        // 族籍
+      deceased: !!o.deceased,      // 已過世
     };
   }
 
@@ -363,7 +364,7 @@ const FT = (() => {
   }
 
   /* ---------- 排版 ---------- */
-  const DIM = { W: 224, H: 124, coupleGap: 30, blockGap: 60, rowGap: 120 };
+  const DIM = { W: 224, H: 124, coupleGap: 30, blockGap: 60, familyGap: 110, rowGap: 120 };
 
   function generations(tree) {
     const gen = { [tree.meId]: 0 }; const q = [tree.meId];
@@ -478,8 +479,57 @@ const FT = (() => {
 
     const memberX = id => { const b = blockOf[id]; const i = b.members.indexOf(id); return b.x + i * (D.W + D.coupleGap) + D.W / 2; };
     const center = b => b.x + b.w / 2;
-    const compact = row => { let x = 0; row.forEach(b => { b.x = x; x += b.w + D.blockGap; }); };
+    // 同一組兄弟姊妹之間用一般間距；不同家之間多留一點空
+    const gapBefore = (row, i) => i === 0 ? 0 : (row[i - 1]._cl === row[i]._cl ? D.blockGap : D.familyGap);
+    const compact = row => { let x = 0; row.forEach((b, i) => { x += gapBefore(row, i); b.x = x; x += b.w; }); };
     gens.forEach(g => compact(rows[g]));
+
+    // ---- 兄弟姊妹分組：同一對父母的孩子是一組，組內照排行，整組一起移動 ----
+    const unitOf = m => { const p = people[m]; const f = p.fatherId && people[p.fatherId] ? p.fatherId : '', mo = p.motherId && people[p.motherId] ? p.motherId : '';
+      return (f || mo) ? f + '|' + mo : null; };
+    const minOrd = b => Math.min(...b.members.map(m => order[m]));
+    blocks.forEach(b => { b._units = [...new Set(b.members.map(unitOf).filter(Boolean))]; });
+    const rowCl = {};
+    gens.forEach(g => {
+      const row = rows[g]; const up = new Map(row.map(b => [b, b]));
+      const f = b => { let r = b; while (up.get(r) !== r) r = up.get(r); up.set(b, r); return r; };
+      const firstOf = {};
+      row.forEach(b => b._units.forEach(u => { if (firstOf[u]) up.set(f(b), f(firstOf[u])); else firstOf[u] = b; }));
+      const m = new Map();
+      row.forEach(b => { const r = f(b); if (!m.has(r)) m.set(r, []); m.get(r).push(b); });
+      rowCl[g] = [...m.values()].map((bl, ci) => { const cl = { blocks: bl, id: g + ':' + ci }; bl.forEach(b => b._cl = cl.id); return cl; });
+    });
+    const unitAnchor = u => { const ps = u.split('|').filter(Boolean); return ps.reduce((s, x) => s + memberX(x), 0) / ps.length; };
+    // 一組（可能因為夫妻而連起兩組兄弟姊妹）裡面的左右順序
+    const arrange = cl => {
+      const units = {};
+      cl.blocks.forEach(b => b._units.forEach(u => (units[u] = units[u] || []).push(b)));
+      let uo = Object.keys(units);
+      if (!uo.length) { cl.blocks.sort((a, b) => minOrd(a) - minOrd(b)); return; }
+      uo.sort((a, b) => (unitAnchor(a) - unitAnchor(b)) || (a < b ? -1 : 1));
+      if (uo.length === 2) {
+        // 夫妻各自的兄弟姊妹：誰在夫妻左邊，誰那一家就排左邊（男左女右）
+        const br = cl.blocks.find(b => b._units.includes(uo[0]) && b._units.includes(uo[1]));
+        if (br) {
+          const i0 = br.members.findIndex(m => unitOf(m) === uo[0]), i1 = br.members.findIndex(m => unitOf(m) === uo[1]);
+          if (i1 < i0) uo = [uo[1], uo[0]];
+        }
+      }
+      const boIn = (b, u) => { const m = b.members.find(mm => unitOf(mm) === u); const v = m && people[m].bo; return v == null ? 1e9 : v; };
+      const placed = new Set(), seq = [];
+      uo.forEach((u, i) => {
+        const next = uo[i + 1];
+        const mine = units[u].filter(b => !placed.has(b));
+        const srt = arr => arr.sort((a, b) => (boIn(a, u) - boIn(b, u)) || (minOrd(a) - minOrd(b)));
+        const toNext = srt(mine.filter(b => next && b._units.includes(next)));
+        const rest = srt(mine.filter(b => !toNext.includes(b)));
+        [...rest, ...toNext].forEach(b => { placed.add(b); seq.push(b); });
+      });
+      cl.blocks = seq;
+    };
+    const clCenter = cl => cl.blocks.reduce((s, b) => s + center(b), 0) / cl.blocks.length;
+    const setRow = g => { rows[g] = rowCl[g].flatMap(cl => cl.blocks); compact(rows[g]); };
+    gens.forEach(g => { rowCl[g].sort((a, b) => Math.min(...a.blocks.map(minOrd)) - Math.min(...b.blocks.map(minOrd))); rowCl[g].forEach(arrange); setRow(g); });
 
     const parentAnchor = id => {
       const p = people[id]; const ps = parentsOf(p).filter(x => people[x]);
@@ -495,42 +545,63 @@ const FT = (() => {
       const xs = b.members.map(parentAnchor).filter(v => v != null);
       return xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : center(b);
     };
-    const boOf = b => Math.min(...b.members.map(m => people[m].bo == null ? 99 : people[m].bo));
     const place = (row, desired, weight) => {
       let off = 0; const o = [];
-      row.forEach(b => { o.push(off); off += b.w + D.blockGap; });
+      row.forEach((b, i) => { off += gapBefore(row, i); o.push(off); off += b.w; });
       const t = row.map((b, i) => desired[i] - b.w / 2 - o[i]);
       const y = isotonic(t, weight);
       row.forEach((b, i) => { b.x = y[i] + o[i]; });
     };
 
-    // 排序：上下來回的重心法
+    // 排序：上下來回的重心法（以「一組兄弟姊妹」為單位移動，組內順序固定照排行）
+    const hasUnits = cl => cl.blocks.some(b => b._units.length);
     for (let it = 0; it < 6; it++) {
       for (let gi = 1; gi < gens.length; gi++) {
-        const row = rows[gens[gi]];
-        const keyed = row.map((b, i) => ({ b, k: keyDown(b), i, bo: boOf(b) }));
-        keyed.sort((p, q) => (p.k - q.k) || (p.bo - q.bo) || (p.i - q.i));
-        rows[gens[gi]] = keyed.map(z => z.b); compact(rows[gens[gi]]);
+        const g = gens[gi];
+        rowCl[g].forEach(arrange);
+        const keyed = rowCl[g].map((cl, i) => {
+          let k;
+          if (hasUnits(cl)) { const xs = cl.blocks.map(keyDown); k = xs.reduce((s, x) => s + x, 0) / xs.length; }
+          else k = clCenter(cl);
+          return { cl, k, i };
+        });
+        keyed.sort((p, q) => (p.k - q.k) || (p.i - q.i));
+        rowCl[g] = keyed.map(z => z.cl); setRow(g);
       }
       for (let gi = gens.length - 2; gi >= 0; gi--) {
-        const row = rows[gens[gi]];
-        const keyed = row.map((b, i) => { const c = childAnchor(b); return { b, k: c == null ? center(b) : c, i }; });
+        const g = gens[gi];
+        // 往上這一趟只移動「沒有填父母」的那些人（例如最上面的祖先），兄弟姊妹的順序不受孩子位置影響
+        const keyed = rowCl[g].map((cl, i) => {
+          let k = clCenter(cl);
+          if (!hasUnits(cl)) { const cs = cl.blocks.map(childAnchor).filter(v => v != null); if (cs.length) k = cs.reduce((s, x) => s + x, 0) / cs.length; }
+          return { cl, k, i };
+        });
         keyed.sort((p, q) => (p.k - q.k) || (p.i - q.i));
-        rows[gens[gi]] = keyed.map(z => z.b); compact(rows[gens[gi]]);
+        rowCl[g] = keyed.map(z => z.cl); setRow(g);
       }
     }
+    // 整張圖上下都沒有卡片的空白直條，縮成一般的家族間距（不影響上下對齊）
+    const squeeze = () => {
+      const iv = blocks.map(b => [b.x, b.x + b.w]).sort((a, b) => a[0] - b[0]);
+      const cuts = []; let end = iv.length ? iv[0][1] : 0;
+      for (let i = 1; i < iv.length; i++) {
+        if (iv[i][0] - end > D.familyGap) cuts.push([end, iv[i][0] - end - D.familyGap]);
+        end = Math.max(end, iv[i][1]);
+      }
+      if (!cuts.length) return;
+      blocks.forEach(b => { let d = 0; cuts.forEach(([at, by]) => { if (b.x >= at) d += by; }); b.x -= d; });
+    };
     // 位置：讓孩子在父母正下方、父母在孩子正上方
     for (let it = 0; it < 12; it++) {
       for (let gi = 1; gi < gens.length; gi++) {
         const row = rows[gens[gi]];
         const des = [], wt = [];
         row.forEach(b => {
-          const xs = b.members.map(parentAnchor).filter(v => v != null);
-          if (xs.length) {
-            // 單一成員有父母：讓該成員（而非整個區塊）對準
-            const m = b.members.find(mm => parentAnchor(mm) != null);
-            const shift = memberX(m) - center(b);
-            des.push(parentAnchor(m) - shift); wt.push(1);
+          // 有父母的成員各自對準自己的父母（夫妻兩人都有父母時取中間，兩邊的家都拉得到）
+          const ms = b.members.filter(mm => parentAnchor(mm) != null);
+          if (ms.length) {
+            const xs = ms.map(m => parentAnchor(m) - (memberX(m) - center(b)));
+            des.push(xs.reduce((s, x) => s + x, 0) / xs.length); wt.push(1);
           } else { des.push(center(b)); wt.push(0.05); }
         });
         place(row, des, wt);
@@ -541,6 +612,7 @@ const FT = (() => {
         row.forEach(b => { const c = childAnchor(b); if (c != null) { des.push(c); wt.push(1); } else { des.push(center(b)); wt.push(0.05); } });
         place(row, des, wt);
       }
+      squeeze();
     }
     // 正規化
     let minX = Infinity, maxX = -Infinity;
