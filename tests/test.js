@@ -372,5 +372,23 @@ for (const f of ['sample_15.json', 'sample_155.json']) sibCheck(FT.validate(JSON
   const L = FT.layout(tr), xs = FT.unitSiblings(tr.meId, Pr).map(q => L.pos[q.id].x);
   ok(xs.every((x, i) => !i || x > xs[i - 1]), '換順序後畫面由左到右照新順序');
 }
+
+// 相片
+{
+  const tp = FT.newTree({ given: 'P', gender: 'M' });
+  const ok1 = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w==';
+  tp.people[tp.meId].photo = ok1;
+  const f = FT.addRelative(tp, tp.meId, 'father').id;
+  tp.people[f].photo = 'javascript:alert(1)';
+  const back = FT.validate(JSON.parse(JSON.stringify(tp)));
+  eq(back.people[tp.meId].photo, ok1, '相片：匯出再開啟後保留');
+  eq(back.people[f].photo, '', '相片：不是圖片的內容會被擋掉');
+  eq(FT.safePhoto('data:image/svg+xml;base64,PHN2Zz4='), '', '相片：SVG 不收（可能夾帶程式）');
+  eq(FT.safePhoto('data:image/png;base64,' + 'A'.repeat(FT.PHOTO_MAX)), '', '相片：太大的不收');
+  eq(FT.safePhoto('data:image/jpeg;base64,AAA" onerror="x'), '', '相片：有奇怪字元的不收');
+  const st = FT.stripPhotos(back);
+  eq(st.people[tp.meId].photo, '', '全班清單存檔時拿掉相片');
+  eq(back.people[tp.meId].photo, ok1, '拿掉相片不影響原本的資料');
+}
 console.log(`\n✓ ${pass}/${pass + fail} 通過` + (fail ? `（${fail} 項失敗）` : ''));
 process.exit(fail ? 1 : 0);

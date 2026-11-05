@@ -21,10 +21,10 @@
 | `src/core.js` | 核心邏輯（純函式）：子連父名、稱謂推算、新增／刪除家人、排版、列印分支、離婚／收養、族籍 |
 | `src/app.html` | 介面（HTML＋CSS＋JS），`/*@@CORE@@*/` 佔位符的位置會塞入 core.js |
 | `build.py` | `python3 build.py` → 產生 index.html |
-| `tests/test.js` | `node tests/test.js` → 核心邏輯測試（目前 172/172 通過，含兄弟姊妹排版檢查、拖拉換順序） |
+| `tests/test.js` | `node tests/test.js` → 核心邏輯測試（目前 179/179 通過，含兄弟姊妹排版檢查、拖拉換順序、相片安全檢查） |
 | `tests/big.js` | 產生 155 人的大家族測試資料 |
 | `tests/sample_15.json`、`tests/sample_155.json` | 範例匯出檔（假資料），可用「開啟檔案」測試 |
-| `tests/browser/*.py` | Playwright 瀏覽器測試。e2e4（新增流程）、e2e5（離婚收養族籍）、e2e6（再婚排版）、e2e7_drag（滑鼠／平板拖拉換順序，用 tests/sample_drag.json）可以直接跑。e2e2、e2e3、audit 原本寫在另一個工作目錄，要先調整範例檔路徑 |
+| `tests/browser/*.py` | Playwright 瀏覽器測試。e2e4（新增流程）、e2e5（離婚收養族籍）、e2e6（再婚排版）、e2e7_drag（滑鼠／平板拖拉換順序，用 tests/sample_drag.json）、e2e8_photo（相片上傳、容量不足、老師匯入，用 tests/img/）可以直接跑。e2e2、e2e3、audit 原本寫在另一個工作目錄，要先調整範例檔路徑 |
 
 ## 修改流程（每次都照做）
 
@@ -41,10 +41,12 @@
 { app:'datong-family-tree', version:1, student:{cls, seat}, meId, terms:{...稱謂覆寫}, updatedAt,
   people:{ id:{ id, given(族名-自己的名字), han(漢名), gender('M'|'F'|''), bo(排行),
                fullOverride(手動完整族名), fatherId, motherId, spouses:[], divorced:[],
-               adoptF, adoptM, tribe(族籍), deceased(已過世) } } }
+               adoptF, adoptM, tribe(族籍), deceased(已過世), photo(相片 data URL) } } }
 ```
 
-- localStorage key：`datongFT.mine.v1`（學生自己的族譜）、`datongFT.class.v1`（老師匯入的全班清單）
+- localStorage key：`datongFT.mine.v1`（學生自己的族譜）、`datongFT.class.v1`（老師匯入的全班清單，**存檔時拿掉相片**，記憶體裡保留到重新整理為止）
+- photo：160×160 JPEG（品質 0.82），直式照片偏上裁切；`FT.safePhoto` 只收 jpeg/png/webp 的 base64 data URL、小於 300,000 字元（擋 SVG 和奇怪字元）。卡片用 blob 網址快取（photoURL），避免每次重畫都重新解碼
+- 注意：所有 bacon-sys.github.io 底下的網頁共用同一份 localStorage 容量
 
 ## 已完成的功能
 
@@ -72,7 +74,7 @@
 
 1. ✅ 修排版（同輩順序、同輩跑到別家）＋已過世勾選
 2. ✅ 拖拉換順序：按住卡片（滑鼠 0.3 秒、觸控 0.45 秒）卡片浮起，同組兄弟姊妹出現黃色虛線框，拖到兩人之間出現黃色直線，放開就改排行（`FT.reorderSiblings`，只在這組原本的排行之間互換，不動同父異母手足的排行）。放在別處＝取消並提示；Esc 取消；快速拖仍是移動畫面；老師檢視時不能拖
-3. 相片：自動縮成小頭像（約 15KB）取代人物圖；老師的全班清單不保留照片（Bacon 已同意）
+3. ✅ 相片：編輯面板「📷 選相片／換一張／移除相片」；卡片、列印都顯示（已過世會變灰）；存不下時退回並提示「裝置空間不夠」；壞掉的檔案提示換一張；老師的全班清單不保留相片（Bacon 已同意）
 4. 族群來源分析：依族籍往上算（例如泰雅族 3/4、漢族 1/4），收養那條線不算；沒填父母的人用他本人的族籍算 100%（Bacon 已同意）；標題用「我的族群來源」並加說明，避免學生覺得「比較不算泰雅人」
 
 ## 還在等 Bacon 確認或之後可以做的

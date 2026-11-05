@@ -66,7 +66,13 @@ header.top .who b{color:#fff}
 .card .kin .term{font-style:italic;color:var(--red);font-weight:700;font-size:14.5px;overflow:hidden;text-overflow:ellipsis}
 .card .cb{display:flex;gap:8px;padding:6px 8px 0 6px;align-items:flex-start}
 .card .av{width:60px;height:60px;flex:none;border-radius:50%;overflow:hidden}
-.card .av svg{width:100%;height:100%;display:block}
+.card .av svg,.card .av img{width:100%;height:100%;display:block}
+.card .av img{object-fit:cover}
+.photorow{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.photorow .pav{width:84px;height:84px;border-radius:50%;overflow:hidden;flex:none;border:2px solid #cdbba5;background:#f4ece0}
+.photorow .pav img,.photorow .pav svg{width:100%;height:100%;display:block;object-fit:cover}
+.photorow.dead .pav{filter:grayscale(1);opacity:.8}
+.photorow .pbtns{display:flex;gap:8px;flex-wrap:wrap}
 .card .tx{flex:1;min-width:0}
 .card .tn{font-size:19px;font-weight:900;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
 .card .hn{font-size:16px;color:#4b403a;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -291,13 +297,14 @@ body.printdoc .pbar{position:sticky;top:0;background:var(--black);color:#fff;pad
 <div class="main" id="main">
   <div class="viewport" id="vp">
     <div class="stage" id="stage"><svg id="lines"></svg><div id="cards"></div></div>
-    <div class="hint" id="hint">點一下卡片 → 加家人、改名字　｜　按住卡片再拖 → 換兄弟姊妹順序　｜　拖曳空白處移動畫面　｜　兩指或滾輪縮放</div>
+    <div class="hint" id="hint">點卡片：加家人、改名字　｜　按住卡片再拖：換兄弟姊妹順序　｜　拖空白處：移動　｜　滾輪：縮放</div>
     <div class="readonly-bar hidden" id="roBar"></div>
   </div>
   <aside class="panel hidden" id="panel"></aside>
 </div>
 <div id="print"></div>
 <div id="modalRoot"></div>
+<input type="file" id="filePhoto" accept="image/*" class="hidden">
 
 <script>
 /*@@CORE@@*/
@@ -329,6 +336,49 @@ function saveMine() {
   const ok = store(KEY_MINE, mine);
   savedAt = ok ? new Date() : null;
   renderWho();
+  return ok;
+}
+
+/* ---------- 相片 ---------- */
+// 卡片每次重畫都用同一個短網址，不用每次重新解碼整張圖
+const photoURLs = new Map();
+function photoURL(d) {
+  if (!d) return '';
+  let u = photoURLs.get(d);
+  if (!u) {
+    try {
+      const bin = atob(d.slice(d.indexOf(',') + 1)), arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      u = URL.createObjectURL(new Blob([arr], { type: d.slice(5, d.indexOf(';')) }));
+    } catch (e) { u = d; }
+    photoURLs.set(d, u);
+  }
+  return u;
+}
+// 縮成 160×160 的正方形小圖（直式照片偏上裁切，比較容易留住臉）
+function shrinkPhoto(f) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(f), img = new Image();
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth, h = img.naturalHeight, side = Math.min(w, h);
+        if (!side) throw new Error('empty');
+        const sx = (w - side) / 2, sy = h > w ? (h - side) * 0.25 : 0;
+        // 先縮到中間大小再縮到最後大小，大張相片縮小後比較不會有鋸齒
+        const mid = document.createElement('canvas'), M = Math.min(side, 480);
+        mid.width = mid.height = M;
+        const mg = mid.getContext('2d'); mg.imageSmoothingQuality = 'high'; mg.drawImage(img, sx, sy, side, side, 0, 0, M, M);
+        const c = document.createElement('canvas'), N = 160; c.width = c.height = N;
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, N, N); g.imageSmoothingQuality = 'high'; g.drawImage(mid, 0, 0, M, M, 0, 0, N, N);
+        URL.revokeObjectURL(url);
+        const d = c.toDataURL('image/jpeg', 0.82);
+        if (!FT.safePhoto(d)) throw new Error('bad');
+        res(d);
+      } catch (e) { URL.revokeObjectURL(url); rej(e); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('bad')); };
+    img.src = url;
+  });
 }
 
 /* ---------- 共用小工具 ---------- */
@@ -411,7 +461,7 @@ function cardHTML(p, kin, pos, t) {
   const cls = ['card', p.gender || '', p.id === t.meId ? 'me' : '', isBlank(p) ? 'blank' : '', p.id === selId ? 'sel' : '', p.id === justAdded ? 'new' : '', p.deceased ? 'dead' : ''].join(' ');
   return `<div class="${cls}" data-id="${p.id}" style="left:${pos.x}px;top:${pos.y}px">
     <div class="kin"><span>${esc(kin.zh)}</span>${kin.term ? `<span class="term">${esc(kin.term)}</span>` : ''}</div>
-    <div class="cb"><div class="av"><svg viewBox="0 0 60 60">${avatarSVG(p.gender, ageOf(pos.gen))}</svg></div>
+    <div class="cb"><div class="av">${p.photo ? `<img src="${esc(photoURL(p.photo))}" alt="" draggable="false">` : `<svg viewBox="0 0 60 60">${avatarSVG(p.gender, ageOf(pos.gen))}</svg>`}</div>
     <div class="tx"><div class="tn">${tn ? esc(tn) : '<span class="empty">（族名未填）</span>'}</div>
     <div class="hn">${p.han ? esc(p.han) : '<span class="empty">漢名未填</span>'}</div></div></div>
     <div class="chips">${p.deceased ? '<span class="dc">已過世</span>' : ''}${FT.isAdopted(p) ? '<span class="ad">收養</span>' : ''}${p.tribe ? `<span class="tr">${esc(FT.tribeShort(p.tribe))}</span>` : ''}${p.gender ? `<span class="g">${GENDER[p.gender]}</span>` : ''}</div>
@@ -730,6 +780,12 @@ function renderPanel(focusName) {
       <select id="fTribe" ${dis}>${tribeOptions(p.tribe)}</select>
       <input type="text" id="fTribeO" class="hidden" style="margin-top:6px" value="${FT.TRIBES.includes(p.tribe) ? '' : esc(p.tribe)}" placeholder="例如：越南、印尼……" autocomplete="off" ${dis}>
     </div>
+    <div class="field">
+      <label>相片（可以不放）</label>
+      <div class="photorow ${p.deceased ? 'dead' : ''}"><div class="pav">${p.photo ? `<img src="${esc(photoURL(p.photo))}" alt="">` : `<svg viewBox="0 0 60 60">${avatarSVG(p.gender, ageOf(lastLayout && lastLayout.pos[p.id] ? lastLayout.pos[p.id].gen : 0))}</svg>`}</div>
+        ${ro ? '' : `<div class="pbtns"><button class="btn small" id="fPhoto">📷 ${p.photo ? '換一張' : '選相片'}</button>${p.photo ? '<button class="btn small" id="fPhotoDel">移除相片</button>' : ''}</div>`}</div>
+      ${ro ? '' : '<div class="note">相片會縮成小圖存在這台裝置；匯出檔案交給老師時，相片也會一起帶過去。</div>'}
+    </div>
     ${p.id === tree.meId ? '' : `<label class="check"><input type="checkbox" id="fDead" ${p.deceased ? 'checked' : ''} ${dis}> 已過世</label>`}`;
   const addHTML = ro ? '' : `<div class="sect">幫「${esc(displayName(p, tree.people) || K.zh)}」加家人</div>
     <div class="addgrid">${ADD_BTNS.map(([r, l]) => `<button data-rel="${r}" ${(r === 'father' && p.fatherId) || (r === 'mother' && p.motherId) ? 'disabled' : ''}>${l}</button>`).join('')}</div>
@@ -792,7 +848,25 @@ function renderPanel(focusName) {
     p.gender = b.dataset.g; panel.querySelectorAll('#fG button').forEach(x => x.classList.toggle('on', x === b)); changed();
   });
   bindTribe($('#fTribe'), $('#fTribeO'), p, changed);
-  const dead = $('#fDead'); if (dead) dead.onchange = e => { p.deceased = e.target.checked; changed(); };
+  const dead = $('#fDead'); if (dead) dead.onchange = e => { p.deceased = e.target.checked; panel.querySelector('.photorow').classList.toggle('dead', p.deceased); changed(); };
+  const setPhoto = d => {
+    const old = p.photo; p.photo = d;
+    if (!saveMine()) {
+      p.photo = old; canStore = true; saveMine();
+      toast('這台裝置的空間不夠，存不下這張相片。可以先「匯出檔案」保存，或移除幾張相片', 7000); return;
+    }
+    renderTree(); renderPanel();
+    if (d) toast('相片放好了', 2000);
+  };
+  $('#fPhoto').onclick = () => {
+    const inp = $('#filePhoto');
+    inp.onchange = async () => {
+      const f = inp.files[0]; inp.value = ''; if (!f) return;
+      try { setPhoto(await shrinkPhoto(f)); } catch (err) { toast('這張相片打不開，請換一張（JPG 或 PNG）', 4500); }
+    };
+    inp.click();
+  };
+  const pdel = $('#fPhotoDel'); if (pdel) pdel.onclick = () => setPhoto('');
   panel.querySelectorAll('.seg2[data-sp] button').forEach(b => b.onclick = () => {
     FT.setDivorced(tree, p.id, b.parentNode.dataset.sp, b.dataset.v === '1');
     saveMine(); renderTree(); renderPanel(); refreshHeading();
@@ -973,7 +1047,7 @@ function treeBody(t, only) {
       <rect x="${x}" y="${y + 6}" width="8" height="${D.H - 12}" fill="${col}"/>
       <text x="${x + 16}" y="${y + 22}" font-size="16" font-weight="700" fill="${me ? '#fff' : '#1f1a17'}">${esc(k.zh)}</text>
       ${k.term ? `<text x="${x + D.W - 8}" y="${y + 22}" font-size="14.5" font-style="italic" font-weight="700" text-anchor="end" fill="${me ? '#ffe1d6' : '#a8231c'}">${esc(fit(k.term, 16))}</text>` : ''}
-      <svg x="${x + 13}" y="${y + 37}" width="60" height="60" viewBox="0 0 60 60"><g ${isBlank(p) ? 'opacity=".45"' : p.deceased ? 'opacity=".8" filter="url(#ftGray)"' : ''}>${avatarSVG(p.gender, ageOf(gen))}</g><path d="M-1 -1H61V61H-1Z M30 0.5A29.5 29.5 0 1 0 30.01 0.5Z" fill="#fff" fill-rule="evenodd"/></svg>
+      <svg x="${x + 13}" y="${y + 37}" width="60" height="60" viewBox="0 0 60 60"><g ${isBlank(p) && !p.photo ? 'opacity=".45"' : p.deceased ? 'opacity=".8" filter="url(#ftGray)"' : ''}>${p.photo ? `<rect width="60" height="60" fill="#f4ece0"/><image href="${esc(p.photo)}" width="60" height="60" preserveAspectRatio="xMidYMid slice"/>` : avatarSVG(p.gender, ageOf(gen))}</g><path d="M-1 -1H61V61H-1Z M30 0.5A29.5 29.5 0 1 0 30.01 0.5Z" fill="#fff" fill-rule="evenodd"/></svg>
       <text x="${x + 81}" y="${y + 60}" font-size="${tnSize}" font-weight="900" fill="${tn ? '#1f1a17' : '#7a6c62'}">${tn ? esc(fit(tn, 15)) : '（族名未填）'}</text>
       <text x="${x + 81}" y="${y + 86}" font-size="16" fill="${p.han ? '#4b403a' : '#7a6c62'}">${p.han ? esc(fit(p.han, 7)) : '漢名未填'}</text>
       ${(() => { let cx = x + D.W - 8, o = '';
@@ -1115,7 +1189,8 @@ function printCurrent() { if (tree) printDialog([tree]); }
 
 /* ---------- 老師檢視 ---------- */
 let classList = load(KEY_CLASS) || [];
-function saveClass() { store(KEY_CLASS, classList); }
+// 全班清單存在裝置上時不留相片（太佔空間）；剛匯入、還沒重新整理時仍看得到相片
+function saveClass() { store(KEY_CLASS, classList.map(i => ({ key: i.key, data: FT.stripPhotos(i.data) }))); }
 function teacherDialog() {
   const sorted = classList.slice().sort((a, b) => String(a.data.student.cls + String(a.data.student.seat).padStart(3, '0')).localeCompare(String(b.data.student.cls + String(b.data.student.seat).padStart(3, '0'))));
   const items = sorted.map(it => {
@@ -1125,7 +1200,7 @@ function teacherDialog() {
       <div class="acts"><button class="btn small dark" data-view="${it.key}">檢視</button><button class="btn small" data-print="${it.key}">列印</button><button class="btn small" data-rm="${it.key}">移除</button></div></div>`;
   }).join('') || '<p style="color:#6f625a">還沒有匯入任何學生檔案。</p>';
   const m = modal('👩‍🏫 老師檢視：全班族譜',
-    `<div class="welcome-intro">按「匯入學生檔案」，一次選取全班交來的 .json 檔（可以多選）。同一位學生重複匯入，會用新的取代舊的。資料只存在這台裝置。</div>
+    `<div class="welcome-intro">按「匯入學生檔案」，一次選取全班交來的 .json 檔（可以多選）。同一位學生重複匯入，會用新的取代舊的。資料只存在這台裝置。<br>學生的相片只在剛匯入時顯示；重新打開網頁後，清單裡不會保留相片（學生交來的原檔還有）。</div>
      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="tImp">📥 匯入學生檔案</button><button class="btn" id="tAll" ${classList.length ? '' : 'disabled'}>🖨️ 全部列印（${classList.length} 份）</button><button class="btn" id="tClr" ${classList.length ? '' : 'disabled'}>清空清單</button></div>
      <div class="cls-list">${items}</div>`, [{ label: '關閉' }], { wide: true });
   m.el.querySelector('#tImp').onclick = () => { m.close(); $('#fileMany').click(); };
@@ -1206,6 +1281,7 @@ $('#bHelp').onclick = () => modal('❓ 使用說明', `
     <li>每個人可以選<b>族籍</b>（16 族、漢族、新住民或自己填），卡片右下角會顯示。</li>
     <li>點一個人，在「特殊關係」可以標註<b>離婚</b>（夫妻線變成灰色虛線）或<b>收養</b>（綠色虛線，卡片標「收養」）。</li>
     <li>兄弟姊妹的順序排錯了：<b>按住卡片不放，等卡片浮起來</b>，拖到其他兄弟姊妹之間（會出現黃色直線），放開就換好了，排行和「哥哥／弟弟」的稱謂會跟著改。</li>
+    <li>放相片：點一個人，按「📷 選相片」，可以拍照或從相簿選。相片會自動縮小、裁成圓形，取代原本的小人圖。</li>
     <li>過世的家人：點他的卡片，勾選「<b>已過世</b>」，卡片會變成灰色並標示「已過世」。</li>
     <li>族名欄<b>只填這個人自己的名字</b>，爸爸的名字會自動接在後面（子連父名）。家裡寫法不一樣時，到「更多設定」自己打完整族名。</li>
     <li>資料會<b>自動存在這台裝置</b>。做完或下課前，按「💾 匯出檔案」，把檔案交給老師。</li>

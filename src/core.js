@@ -55,7 +55,19 @@ const FT = (() => {
       adoptM: !!o.adoptM,          // 和媽媽是收養關係
       tribe: o.tribe || '',        // 族籍
       deceased: !!o.deceased,      // 已過世
+      photo: safePhoto(o.photo),   // 相片（縮好的小圖，data URL）
     };
+  }
+  // 只接受圖片的 data URL（避免匯入的檔案夾帶其他東西），太大的不收
+  const PHOTO_MAX = 300000;
+  function safePhoto(v) {
+    return typeof v === 'string' && v.length < PHOTO_MAX && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : '';
+  }
+  // 拿掉相片（老師的全班清單存在裝置上時用）
+  function stripPhotos(data) {
+    const out = Object.assign({}, data, { people: {} });
+    for (const id in data.people) out.people[id] = Object.assign({}, data.people[id], { photo: '' });
+    return out;
   }
 
   function newTree(me) {
@@ -748,6 +760,6 @@ const FT = (() => {
 
   return { TERM_DEFS, DEFAULT_TERMS, makePerson, newTree, tribalName, childrenOf, siblingsOf, kinMap, addRelative,
     deletePreview, deletePerson, layout, generations, validate, isotonic, DIM, paths, branchIds, subsetPeople,
-    TRIBES, PATRONYMIC, tribeShort, setDivorced, isDivorced, isAdopted, unitSiblings, reorderSiblings };
+    TRIBES, PATRONYMIC, tribeShort, setDivorced, isDivorced, isAdopted, unitSiblings, reorderSiblings, safePhoto, stripPhotos, PHOTO_MAX };
 })();
 if (typeof module !== 'undefined') module.exports = FT;
