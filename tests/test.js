@@ -422,5 +422,43 @@ for (const f of ['sample_15.json', 'sample_155.json']) sibCheck(FT.validate(JSON
   ok(Math.abs(sum(tdd, tdd.meId) - 1) < 1e-9, '族群來源：資料有迴圈也不會當掉');
   eq(FT.fracText(0.375), '3/8', '分數顯示 3/8'); eq(FT.fracText(1), '1', '分數顯示 1'); eq(FT.fracText(1 / 3), '33.3%', '不是 2 的次方就用百分比');
 }
+
+// 排行輸入（Notion AI 2026-11-05 回報：可重複、可填 0）
+{
+  const tr = FT.newTree({ given: 'Dad', gender: 'M' });
+  const kids = []; for (let i = 0; i < 9; i++) kids.push(FT.addRelative(tr, tr.meId, 'son').id);
+  const bo = () => kids.map(k => tr.people[k].bo);
+  eq(bo().join(), '1,2,3,4,5,6,7,8,9', '9 個孩子排行 1～9');
+  const moved = FT.setBirthOrder(tr, kids[0], 9);
+  eq(bo().join(), '9,1,2,3,4,5,6,7,8', '排行 1～9 時把老大改成 9：其他人往前一位');
+  eq(moved.length, 8, '回傳跟著調整的人');
+  FT.setBirthOrder(tr, kids[0], 1);
+  eq(bo().join(), '1,2,3,4,5,6,7,8,9', '再改回 1：恢復原狀');
+  FT.setBirthOrder(tr, kids[8], 0);
+  eq(tr.people[kids[8]].bo, 1, '填 0 會變成 1（最小是 1）');
+  eq(new Set(bo()).size, 9, '填 0 之後排行仍不重複');
+  FT.setBirthOrder(tr, kids[3], 2.6); eq(tr.people[kids[3]].bo, 3, '小數四捨五入');
+  FT.setBirthOrder(tr, kids[3], 99); eq(tr.people[kids[3]].bo, 30, '最大是 30');
+  FT.setBirthOrder(tr, kids[3], null); eq(tr.people[kids[3]].bo, null, '清空 = 不知道排行');
+  // 只填老大和老三：空號保留
+  const t2 = FT.newTree({ given: 'X', gender: 'M' }); const d = FT.addRelative(t2, t2.meId, 'father').id;
+  const u = FT.addRelative(t2, d, 'olderBrother').id;
+  FT.setBirthOrder(t2, d, 3); FT.setBirthOrder(t2, u, 1);
+  eq(t2.people[d].bo + ',' + t2.people[u].bo, '3,1', '只填老大和老三時，中間的空號保留');
+  FT.setBirthOrder(t2, u, 3);
+  eq(t2.people[u].bo + ',' + t2.people[d].bo, '3,4', '有空號時撞號：原本那位往後移');
+  // 舊檔案裡的 0、負數、文字
+  const bad = JSON.parse(JSON.stringify(tr)); bad.people[kids[1]].bo = 0; bad.people[kids[2]].bo = -3; bad.people[kids[4]].bo = 'abc';
+  const v = FT.validate(bad);
+  eq([v.people[kids[1]].bo, v.people[kids[2]].bo, v.people[kids[4]].bo].join(), ',,', '開檔時排行 0、負數、文字都變成「不知道」');
+}
+// CSS 大括號要成對（2026-11-05：多一個 } 讓「列印內容不顯示」那條規則失效，取消列印後畫面被蓋住）
+{
+  const html = require('fs').readFileSync(__dirname + '/../src/app.html', 'utf8');
+  const css = html.slice(html.indexOf('<style>') + 7, html.indexOf('</style>'));
+  let depth = 0, neg = false; for (const ch of css) { if (ch === '{') depth++; else if (ch === '}') { depth--; if (depth < 0) neg = true; } }
+  ok(!neg && depth === 0, 'CSS 大括號成對');
+  ok(/(^|\n)#print\{display:none\}/.test(css), '螢幕上預設不顯示列印內容');
+}
 console.log(`\n✓ ${pass}/${pass + fail} 通過` + (fail ? `（${fail} 項失敗）` : ''));
 process.exit(fail ? 1 : 0);

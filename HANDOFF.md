@@ -21,10 +21,10 @@
 | `src/core.js` | 核心邏輯（純函式）：子連父名、稱謂推算、新增／刪除家人、排版、列印分支、離婚／收養、族籍 |
 | `src/app.html` | 介面（HTML＋CSS＋JS），`/*@@CORE@@*/` 佔位符的位置會塞入 core.js |
 | `build.py` | `python3 build.py` → 產生 index.html |
-| `tests/test.js` | `node tests/test.js` → 核心邏輯測試（目前 191/191 通過，含兄弟姊妹排版檢查、拖拉換順序、相片安全檢查、族群來源計算） |
+| `tests/test.js` | `node tests/test.js` → 核心邏輯測試（目前 205/205 通過，含兄弟姊妹排版檢查、拖拉換順序、相片安全檢查、族群來源計算、排行輸入、CSS 大括號成對） |
 | `tests/big.js` | 產生 155 人的大家族測試資料 |
 | `tests/sample_15.json`、`tests/sample_155.json` | 範例匯出檔（假資料），可用「開啟檔案」測試 |
-| `tests/browser/*.py` | Playwright 瀏覽器測試。e2e4（新增流程）、e2e5（離婚收養族籍）、e2e6（再婚排版）、e2e7_drag（滑鼠／平板拖拉換順序，用 tests/sample_drag.json）、e2e8_photo（相片上傳、容量不足、老師匯入，用 tests/img/）、e2e9_origin（族群來源視窗，用 tests/sample_origin.json）可以直接跑。e2e2、e2e3、audit 原本寫在另一個工作目錄，要先調整範例檔路徑 |
+| `tests/browser/*.py` | Playwright 瀏覽器測試。e2e4（新增流程）、e2e5（離婚收養族籍）、e2e6（再婚排版）、e2e7_drag（滑鼠／平板拖拉換順序，用 tests/sample_drag.json）、e2e8_photo（相片上傳、容量不足、老師匯入，用 tests/img/）、e2e9_origin（族群來源視窗，用 tests/sample_origin.json）、e2e10_notion_fixes（列印取消、排行輸入、推算標示）可以直接跑。e2e2、e2e3、audit 原本寫在另一個工作目錄，要先調整範例檔路徑 |
 
 ## 修改流程（每次都照做）
 
@@ -80,6 +80,13 @@
    - 編輯面板族籍下方有一行摘要，改族籍會即時更新
    - 沒有做「老師關閉這個功能」：沒有帳號和伺服器，關閉設定只能存在各台裝置上，學生自己就能打開，意義不大。若要做，可用網址參數（例如 ?origin=off）讓老師發的連結預設不顯示
    - 沒有放進列印
+
+## Notion AI 第二次測試（2026-11-05 下午）的處理結果
+
+- ✅ 屬實＋已修：取消列印後列印內容蓋住畫面。原因是 CSS 多一個 `}`（這一輪之前就有），讓 `#print{display:none}` 失效。已刪除，並加測試檢查 CSS 大括號成對
+- ✅ 屬實＋已修：排行可重複、可存 0。改用 `FT.setBirthOrder`：只收 1～30 整數；原本 1、2、3……沒空號時當成「換到第 n 個」，有空號時撞號者往後移；按 Enter 或離開欄位才套用；不合法時紅字提示並不套用；開舊檔時 0、負數、文字變成「不知道」
+- ✅ 部分採納：族群來源缺資料。保留 Bacon 選的規則（用本人族籍補），但結果旁標「其中 1/2 是推算」，清單中標「推算」，說明加上「也不是基因檢測的結果」。若 Bacon 想改成顯示「未知」，只要改 ancestry 裡補缺的那段
+- 屬實的限制：重疊問題是用重建的家族測的，要 Bacon 原本的族譜檔才能百分之百確認
 
 ## 還在等 Bacon 確認或之後可以做的
 

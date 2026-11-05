@@ -183,6 +183,8 @@ details.more[open]{display:flex;flex-direction:column;gap:12px;padding-bottom:12
 .otable button{border:none;background:none;color:var(--red);font-weight:700;font-size:17px;padding:0;text-decoration:underline;cursor:pointer;text-align:left}
 .oline{font-size:17px;margin-top:6px;display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center}
 .oline b{font-weight:900}
+.oinf{color:#8a5a12;font-size:15px;margin-left:4px}
+.oinf-tag{display:inline-block;background:#b07a1e;color:#fff;font-size:14px;font-weight:700;border-radius:6px;padding:0 6px;margin-right:6px;line-height:20px}
 .linkbtn{border:none;background:none;color:var(--red);font-weight:700;font-size:17px;padding:0;text-decoration:underline;cursor:pointer}
 
 /* ===== 手機、直式平板 ===== */
@@ -202,7 +204,6 @@ details.more[open]{display:flex;flex-direction:column;gap:12px;padding-bottom:12
 @media (max-width:1100px){
   .toolbar .sec{display:none}
   #bMore{display:inline-flex}
-}
 }
 
 /* ===== 列印頁面（螢幕預覽與列印共用） ===== */
@@ -826,8 +827,8 @@ function renderPanel(focusName) {
       </div>
       ${hasParents ? `<div class="field">
         <label for="fBo">排行：家中第幾個孩子</label>
-        <input type="number" id="fBo" min="1" max="30" value="${p.bo == null ? '' : p.bo}" ${dis} style="width:120px">
-        <div class="note">用來判斷「哥哥／弟弟」「伯伯／叔叔」。</div>
+        <input type="number" id="fBo" min="1" max="30" step="1" inputmode="numeric" value="${p.bo == null ? '' : p.bo}" ${dis} style="width:120px">
+        <div class="note" id="fBoNote">用來判斷「哥哥／弟弟」「伯伯／叔叔」。填好後按 Enter 或點別的地方就會套用；也可以按住卡片拖拉換順序。</div>
       </div>` : ''}
     </details>
     ${ro || p.id === tree.meId ? '' : '<button class="danger" id="pDel">🗑 刪除這個人</button>'}`;
@@ -916,7 +917,22 @@ function renderPanel(focusName) {
     bindTribe($('#qTribe'), $('#qTribeO'), np, qChanged);
     $('#qGo').onclick = () => { const id = np.id; select(id); focusPerson(id, Math.max(view.s, 0.8)); };
   }
-  const bo = $('#fBo'); if (bo) bo.oninput = e => { const v = parseInt(e.target.value, 10); p.bo = isNaN(v) ? null : v; changed(); };
+  const bo = $('#fBo');
+  if (bo) {
+    const okVal = v => v === '' || (/^\d+$/.test(v) && +v >= 1 && +v <= 30);
+    bo.oninput = e => { const n = $('#fBoNote'), bad = !okVal(e.target.value.trim());
+      n.style.color = bad ? '#a8231c' : ''; n.style.fontWeight = bad ? '700' : '';
+      n.textContent = bad ? '請填 1 到 30 的整數（第 1 個孩子填 1）。' : '用來判斷「哥哥／弟弟」「伯伯／叔叔」。填好後按 Enter 或點別的地方就會套用；也可以按住卡片拖拉換順序。'; };
+    bo.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); bo.blur(); } };
+    bo.onchange = e => {
+      const v = e.target.value.trim();
+      if (!okVal(v)) { e.target.value = p.bo == null ? '' : p.bo; bo.oninput({ target: e.target }); toast('排行要填 1 到 30 的整數，這次沒有改', 3500); return; }
+      const moved = FT.setBirthOrder(tree, p.id, v === '' ? null : +v);
+      if (!viewing) saveMine(); renderTree(); renderPanel(); refreshHeading();
+      if (moved.length > 2) toast(`已改成第 ${p.bo} 個，其他 ${moved.length} 位兄弟姊妹的排行也跟著調整了`, 4000);
+      else if (moved.length) toast(moved.map(i => `「${displayName(tree.people[i], tree.people) || FT.kinMap(tree)[i].zh}」改成第 ${tree.people[i].bo}`).join('、') + '（排行不能重複，已自動調整）', 5000);
+    };
+  }
   panel.querySelectorAll('.addgrid button').forEach(b => b.onclick = () => doAdd(p.id, b.dataset.rel));
   const del = $('#pDel'); if (del) del.onclick = () => doDelete(p.id);
   if (focusName) { const f = np ? $('#qGiven') : $('#fGiven'); if (f && !f.disabled) f.focus({ preventScroll: true }); }
@@ -1031,9 +1047,15 @@ function originColors(mix) {
 const tribeLabel = t => t || '未填寫';
 // 比例大的在前；一樣大時泰雅族先，其他照名稱；未填寫放最後
 const oSort = (a, b) => (!a[0]) - (!b[0]) || (b[1] - a[1] > 1e-9 ? 1 : a[1] - b[1] > 1e-9 ? -1 : 0) || (b[0] === '泰雅族') - (a[0] === '泰雅族') || a[0].localeCompare(b[0], 'zh-Hant');
+// 推算的部分：有填爸爸或媽媽其中一位（或上面的祖先沒填族籍），缺的部分用這個人自己的族籍補
+const bioParent = (P, q) => (q.fatherId && P[q.fatherId] && !q.adoptF) || (q.motherId && P[q.motherId] && !q.adoptM);
+function inferredShare(id, src) {
+  const P = tree.people;
+  return src.reduce((a, [i, v]) => a + (bioParent(P, P[i]) && (P[i].tribe || '').trim() ? v : 0), 0);
+}
 function originSummary(id) {
-  const { mix } = FT.ancestry(tree, id);
-  return Object.entries(mix).sort(oSort).map(([t, v]) => `${esc(tribeLabel(t))} <b>${FT.fracText(v)}</b>`).join('、');
+  const { mix, src } = FT.ancestry(tree, id), inf = inferredShare(id, src);
+  return Object.entries(mix).sort(oSort).map(([t, v]) => `${esc(tribeLabel(t))} <b>${FT.fracText(v)}</b>`).join('、') + (inf > 1e-9 ? `<span class="oinf">（其中 ${FT.fracText(inf)} 是推算）</span>` : '');
 }
 function originDialog(id) {
   const P = tree.people, p = P[id], K = FT.kinMap(tree);
@@ -1043,7 +1065,8 @@ function originDialog(id) {
   const pct = v => (Math.round(v * 1000) / 10) + '%';
   const bar = rows.map(([t, v]) => `<span class="${t ? '' : 'unk'}" style="width:${v * 100}%;${t ? 'background:' + col[t] : ''}" title="${esc(tribeLabel(t))} ${FT.fracText(v)}">${v >= 0.12 ? esc(FT.tribeShort(t) || '未填') + ' ' + FT.fracText(v) : ''}</span>`).join('');
   const legend = rows.map(([t, v]) => `<i style="${t ? 'background:' + col[t] : 'background:repeating-linear-gradient(45deg,#cfc6bb 0 4px,#bdb3a7 4px 8px)'}"></i><span>${esc(tribeLabel(t))}</span><span class="fr">${FT.fracText(v)}</span><span class="pc">${pct(v)}</span>`).join('');
-  const bio = q => (q.fatherId && P[q.fatherId] && !q.adoptF) || (q.motherId && P[q.motherId] && !q.adoptM);
+  const bio = q => bioParent(P, q);
+  const inf = inferredShare(id, src);
   const why = (i, v) => {
     const q = P[i];
     if (i === id) return v >= 1 - 1e-9 ? '還沒填爸媽，用自己的族籍算' : '爸媽有一位還沒填（或是收養），這一半用自己的族籍算';
@@ -1051,15 +1074,16 @@ function originDialog(id) {
     return '沒有再往上填，用他的族籍算';
   };
   const nm = i => esc(displayName(P[i], P) || '（未填名字）');
-  const table = src.map(([i, v]) => `<tr><td>${esc(K[i].zh)}</td><td>${i === id ? nm(i) : `<button data-go="${i}">${nm(i)}</button>`}</td><td>${P[i].tribe ? esc(P[i].tribe) : '<b style="color:#a8231c">未填寫</b>'}</td><td class="r">${FT.fracText(v)}</td></tr><tr><td></td><td colspan="3" class="why">${why(i, v)}</td></tr>`).join('');
+  const table = src.map(([i, v]) => `<tr><td>${esc(K[i].zh)}</td><td>${i === id ? nm(i) : `<button data-go="${i}">${nm(i)}</button>`}</td><td>${P[i].tribe ? esc(P[i].tribe) : '<b style="color:#a8231c">未填寫</b>'}</td><td class="r">${FT.fracText(v)}</td></tr><tr><td></td><td colspan="3" class="why">${bio(P[i]) && (P[i].tribe || '').trim() ? '<span class="oinf-tag">推算</span>' : ''}${why(i, v)}</td></tr>`).join('');
   const nUnk = src.filter(([i]) => !(P[i].tribe || '').trim()).length;
   const who = id === tree.meId ? '我' : '「' + (displayName(p, P) || K[id].zh) + '」';
   const m = modal(`🌱 ${id === tree.meId ? '我的族群來源' : esc(who) + '的族群來源'}`,
     `<div class="obar">${bar}</div>
      <div class="olegend">${legend}</div>
+     ${inf > 1e-9 ? `<div class="onote" style="border-color:#b07a1e"><b>其中 ${FT.fracText(inf)}（${pct(inf)}）是推算的：</b>有家人只填了爸爸或媽媽其中一位（或是更上面的祖先沒填族籍），缺的那部分先用他自己的族籍來算。下面標「推算」的就是這些。把家人補齊，結果會更準確。</div>` : ''}
      ${nUnk ? `<div class="onote" style="border-color:#a8231c;background:#fbe9e4">有 <b>${nUnk}</b> 位家人還沒填族籍，點下面的名字去幫他填，結果會更完整。</div>` : ''}
      <div class="welcome-intro"><b>怎麼算的？</b>爸爸、媽媽各占一半；爺爺、奶奶、外公、外婆各占四分之一……一代一代往上，把每位祖先填的「族籍」加起來。還沒填爸媽的人，就用他自己的族籍來算；收養的關係不算在裡面。</div>
-     <div class="onote">這只是用族譜資料算出來的數字，<b>不代表${id === tree.meId ? '你' : '一個人'}「有多少」是哪一族</b>。是不是泰雅人、認同哪個文化，看的是和家人、部落、語言、文化的連結，不是分數。法律上的原住民身分，也不是用比例來認定的。</div>
+     <div class="onote">這只是用族譜資料算出來的數字，<b>不代表${id === tree.meId ? '你' : '一個人'}「有多少」是哪一族</b>。是不是泰雅人、認同哪個文化，看的是和家人、部落、語言、文化的連結，不是分數。法律上的原住民身分，也不是用比例來認定的；這也不是基因檢測的結果。</div>
      <div class="sect">用了誰的族籍</div>
      <table class="otable"><tr><th>稱謂</th><th>名字</th><th>族籍</th><th style="text-align:right">占多少</th></tr>${table}</table>`,
     [{ label: '關閉', cls: 'primary' }], { wide: true });

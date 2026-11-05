@@ -347,6 +347,31 @@ const FT = (() => {
     return rest.map(q => q.id).join() !== before;
   }
 
+  // 在排行欄位填數字：只收 1～30 的整數；和兄弟姊妹撞號時，原本那位（和後面連號的）往後移一位
+  // 回傳被往後移的人的 id
+  function setBirthOrder(tree, id, value) {
+    const people = tree.people, p = people[id]; if (!p) return [];
+    if (value == null || value === '') { p.bo = null; return []; }
+    let n = Math.round(Number(value));
+    if (!isFinite(n)) return [];
+    n = Math.min(30, Math.max(1, n));
+    const others = siblingsOf(id, people).filter(q => q.bo != null).sort((a, b) => a.bo - b.bo);
+    const before = Object.fromEntries(others.map(q => [q.id, q.bo]));
+    // 原本排行剛好是 1、2、3……沒有空號：當成「換到第 n 個」，其他人跟著往前或往後
+    const k = others.length + 1, all = [...others.map(q => q.bo), p.bo].sort((a, b) => a - b);
+    if (p.bo != null && n <= k && all.every((v, i) => v === i + 1)) {
+      const rest = others.slice(); rest.splice(n - 1, 0, p);
+      rest.forEach((q, i) => { q.bo = i + 1; });
+      return others.filter(q => q.bo !== before[q.id]).map(q => q.id);
+    }
+    p.bo = n;
+    // 由小到大檢查，確保不重複（中間空號保留，例如只填了老大和老三）
+    const list = [...others.filter(q => q.bo < n), p, ...others.filter(q => q.bo >= n)];
+    let prev = 0;
+    list.forEach(q => { if (q.bo <= prev) q.bo = prev + 1; prev = q.bo; });
+    return others.filter(q => q.bo !== before[q.id]).map(q => q.id);
+  }
+
   /* ---------- 特殊關係 ---------- */
   function setDivorced(tree, a, b, on) {
     const P = tree.people; if (!P[a] || !P[b] || !P[a].spouses.includes(b)) return;
@@ -791,6 +816,8 @@ const FT = (() => {
       data.people[id] = makePerson(Object.assign({}, p, { id }));
     }
     for (const p of Object.values(data.people)) {
+      // 排行只收 1～30 的整數
+      if (p.bo != null) { const n = Math.round(Number(p.bo)); p.bo = isFinite(n) && n >= 1 ? Math.min(30, n) : null; }
       if (p.fatherId && !data.people[p.fatherId]) p.fatherId = null;
       if (p.motherId && !data.people[p.motherId]) p.motherId = null;
       p.spouses = p.spouses.filter(s => data.people[s] && s !== p.id);
@@ -805,6 +832,6 @@ const FT = (() => {
 
   return { TERM_DEFS, DEFAULT_TERMS, makePerson, newTree, tribalName, childrenOf, siblingsOf, kinMap, addRelative,
     deletePreview, deletePerson, layout, generations, validate, isotonic, DIM, paths, branchIds, subsetPeople,
-    TRIBES, PATRONYMIC, tribeShort, setDivorced, isDivorced, isAdopted, unitSiblings, reorderSiblings, safePhoto, stripPhotos, PHOTO_MAX, ancestry, fracText };
+    TRIBES, PATRONYMIC, tribeShort, setDivorced, isDivorced, isAdopted, unitSiblings, reorderSiblings, safePhoto, stripPhotos, PHOTO_MAX, ancestry, fracText, setBirthOrder };
 })();
 if (typeof module !== 'undefined') module.exports = FT;
