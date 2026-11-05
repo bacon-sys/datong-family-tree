@@ -737,6 +737,51 @@ const FT = (() => {
     return out;
   }
 
+  /* ---------- 族群來源 ---------- */
+  // 依族籍一代一代往上平分：爸爸、媽媽各一半。
+  // 收養的關係不算；沒填爸媽（或爸媽那邊沒有任何族籍資料）的部分，用這個人自己的族籍來算。
+  // 回傳 { mix: {族籍: 比例}, src: [[人的 id, 比例]] }，src 是「用了誰的族籍、算了多少」
+  function ancestry(tree, id) {
+    const P = tree.people, memo = {}, onStack = new Set();
+    const own = pid => ((P[pid] && P[pid].tribe) || '').trim();
+    const merge = src => { const m = new Map(); src.forEach(([i, v]) => m.set(i, (m.get(i) || 0) + v)); return [...m.entries()]; };
+    function calc(pid) {
+      if (memo[pid]) return memo[pid];
+      const p = P[pid];
+      if (!p || onStack.has(pid)) return [[pid, 1]];
+      onStack.add(pid);
+      const f = p.fatherId && P[p.fatherId] && !p.adoptF ? p.fatherId : null;
+      const m = p.motherId && P[p.motherId] && !p.adoptM ? p.motherId : null;
+      let src;
+      if (!f && !m) src = [[pid, 1]];
+      else {
+        src = [];
+        [f, m].forEach(x => { if (x) calc(x).forEach(([i, v]) => src.push([i, v / 2])); else src.push([pid, 0.5]); });
+        // 上面的祖先沒有填族籍：改用這個人自己的族籍
+        if (own(pid)) {
+          let gap = 0; src = src.filter(([i, v]) => { if (!own(i)) { gap += v; return false; } return true; });
+          if (gap) src.push([pid, gap]);
+        }
+        src = merge(src);
+      }
+      onStack.delete(pid); memo[pid] = src;
+      return src;
+    }
+    const src = calc(id).slice().sort((a, b) => b[1] - a[1]);
+    const mix = {};
+    src.forEach(([i, v]) => { const k = own(i); mix[k] = (mix[k] || 0) + v; });
+    return { mix, src };
+  }
+  // 0.375 → '3/8'；1 → '1'
+  function fracText(x) {
+    if (Math.abs(x - 1) < 1e-9) return '1';
+    for (let k = 1; k <= 16; k++) {
+      const d = 2 ** k, n = x * d;
+      if (Math.abs(n - Math.round(n)) < 1e-7) { let a = Math.round(n), b = d; while (a % 2 === 0 && b > 1) { a /= 2; b /= 2; } return a + '/' + b; }
+    }
+    return (x * 100).toFixed(1) + '%';
+  }
+
   /* ---------- 檔案 ---------- */
   function validate(data) {
     if (!data || data.app !== 'datong-family-tree' || !data.people || !data.meId || !data.people[data.meId])
@@ -760,6 +805,6 @@ const FT = (() => {
 
   return { TERM_DEFS, DEFAULT_TERMS, makePerson, newTree, tribalName, childrenOf, siblingsOf, kinMap, addRelative,
     deletePreview, deletePerson, layout, generations, validate, isotonic, DIM, paths, branchIds, subsetPeople,
-    TRIBES, PATRONYMIC, tribeShort, setDivorced, isDivorced, isAdopted, unitSiblings, reorderSiblings, safePhoto, stripPhotos, PHOTO_MAX };
+    TRIBES, PATRONYMIC, tribeShort, setDivorced, isDivorced, isAdopted, unitSiblings, reorderSiblings, safePhoto, stripPhotos, PHOTO_MAX, ancestry, fracText };
 })();
 if (typeof module !== 'undefined') module.exports = FT;

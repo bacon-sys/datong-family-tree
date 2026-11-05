@@ -390,5 +390,37 @@ for (const f of ['sample_15.json', 'sample_155.json']) sibCheck(FT.validate(JSON
   eq(st.people[tp.meId].photo, '', '全班清單存檔時拿掉相片');
   eq(back.people[tp.meId].photo, ok1, '拿掉相片不影響原本的資料');
 }
+
+// 族群來源
+{
+  const mixOf = (tt, id) => { const r = FT.ancestry(tt, id).mix; const o = {}; for (const k in r) o[k] = FT.fracText(r[k]); return JSON.stringify(Object.fromEntries(Object.entries(o).sort())); };
+  const sum = (tt, id) => Object.values(FT.ancestry(tt, id).mix).reduce((a, b) => a + b, 0);
+  const ta = FT.newTree({ given: 'Me', gender: 'F', tribe: '泰雅族' });
+  const A = (a, r, tribe) => { const i = FT.addRelative(ta, a, r).id; ta.people[i].tribe = tribe || ''; return i; };
+  eq(mixOf(ta, ta.meId), '{"泰雅族":"1"}', '族群來源：沒填爸媽，用自己的族籍算 100%');
+  const d = A(ta.meId, 'father', '泰雅族'), m = A(ta.meId, 'mother', '漢族');
+  eq(mixOf(ta, ta.meId), '{"泰雅族":"1/2","漢族":"1/2"}', '族群來源：爸爸泰雅、媽媽漢族 → 各 1/2');
+  A(m, 'father', '漢族'); A(m, 'mother', '阿美族');
+  eq(mixOf(ta, ta.meId), '{"泰雅族":"1/2","漢族":"1/4","阿美族":"1/4"}', '族群來源：外公漢族、外婆阿美族');
+  const gf = A(d, 'father', '泰雅族'); A(gf, 'mother', '賽德克族');
+  eq(mixOf(ta, ta.meId), '{"泰雅族":"3/8","漢族":"1/4","賽德克族":"1/8","阿美族":"1/4"}', '族群來源：曾祖母賽德克族 → 1/8');
+  ok(Math.abs(sum(ta, ta.meId) - 1) < 1e-9, '族群來源：加起來剛好是 1');
+  // 空白的爸媽卡片（加兄弟姊妹時自動補的）不會變成「未填」
+  const tb = FT.newTree({ given: 'B', gender: 'M', tribe: '泰雅族' });
+  FT.addRelative(tb, tb.meId, 'olderBrother');
+  eq(mixOf(tb, tb.meId), '{"泰雅族":"1"}', '族群來源：爸媽是空白卡片時，用自己的族籍算');
+  // 收養的那條線不算
+  ta.people[ta.meId].adoptM = true;
+  eq(mixOf(ta, ta.meId), '{"泰雅族":"7/8","賽德克族":"1/8"}', '族群來源：媽媽是養母，媽媽那邊不算（用自己的族籍補）');
+  ta.people[ta.meId].adoptM = false;
+  // 自己也沒填族籍、上面也沒有 → 未填
+  const tc = FT.newTree({ given: 'C', gender: 'M' });
+  eq(mixOf(tc, tc.meId), '{"":"1"}', '族群來源：什麼都沒填 → 未填寫');
+  // 壞掉的資料（自己是自己的祖先）不會當掉
+  const tdd = FT.newTree({ given: 'D', gender: 'M', tribe: '泰雅族' });
+  const dd = FT.addRelative(tdd, tdd.meId, 'father').id; tdd.people[dd].fatherId = tdd.meId;
+  ok(Math.abs(sum(tdd, tdd.meId) - 1) < 1e-9, '族群來源：資料有迴圈也不會當掉');
+  eq(FT.fracText(0.375), '3/8', '分數顯示 3/8'); eq(FT.fracText(1), '1', '分數顯示 1'); eq(FT.fracText(1 / 3), '33.3%', '不是 2 的次方就用百分比');
+}
 console.log(`\n✓ ${pass}/${pass + fail} 通過` + (fail ? `（${fail} 項失敗）` : ''));
 process.exit(fail ? 1 : 0);

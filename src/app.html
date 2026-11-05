@@ -167,6 +167,23 @@ details.more[open]{display:flex;flex-direction:column;gap:12px;padding-bottom:12
 .cls-item .acts{margin-left:auto;display:flex;gap:6px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--black);color:#fff;padding:10px 18px;border-radius:14px;font-size:18px;z-index:80;max-width:90%;box-shadow:0 6px 18px rgba(0,0,0,.3)}
 .welcome-intro{background:var(--sand);border-radius:12px;padding:10px 14px;font-size:17px}
+.obar{display:flex;flex:none;height:52px;border-radius:12px;overflow:hidden;margin:6px 0 12px;box-shadow:inset 0 0 0 2px rgba(0,0,0,.08)}
+.obar span{display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:17px;white-space:nowrap;overflow:hidden;min-width:3px}
+.obar span.unk{background:repeating-linear-gradient(45deg,#cfc6bb 0 8px,#bdb3a7 8px 16px);color:#3d342e}
+.olegend{display:grid;grid-template-columns:auto 1fr auto auto;gap:6px 12px;align-items:center;font-size:19px;margin-bottom:12px}
+.olegend i{width:20px;height:20px;border-radius:5px;display:inline-block}
+.olegend .fr{font-weight:900;font-size:22px;text-align:right}
+.olegend .pc{color:var(--muted);font-size:17px;text-align:right}
+.onote{background:#fdf1df;border-left:6px solid var(--gold);border-radius:10px;padding:10px 14px;font-size:17px;margin:12px 0}
+.otable{width:100%;border-collapse:collapse;font-size:17px}
+.otable th,.otable td{border-bottom:1px solid #eadfcf;padding:6px 6px;text-align:left;vertical-align:top}
+.otable th{background:var(--sand);font-size:16px}
+.otable td.r{text-align:right;font-weight:700;white-space:nowrap}
+.otable .why{color:var(--muted);font-size:15px}
+.otable button{border:none;background:none;color:var(--red);font-weight:700;font-size:17px;padding:0;text-decoration:underline;cursor:pointer;text-align:left}
+.oline{font-size:17px;margin-top:6px;display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center}
+.oline b{font-weight:900}
+.linkbtn{border:none;background:none;color:var(--red);font-weight:700;font-size:17px;padding:0;text-decoration:underline;cursor:pointer}
 
 /* ===== 手機、直式平板 ===== */
 @media (max-width:900px){
@@ -279,6 +296,7 @@ body.printdoc .pbar{position:sticky;top:0;background:var(--black);color:#fff;pad
   <button class="btn sec" id="bImport" title="打開之前匯出的檔案">📂 <span class="t">開啟檔案</span></button>
   <button class="btn" id="bPrint" title="A4 橫式列印">🖨️ <span class="t">列印</span></button>
   <button class="btn sec" id="bTerms" title="族語稱謂對照表">🗣️ <span class="t">稱謂表</span></button>
+  <button class="btn sec" id="bOrigin" title="依家人填的族籍，算出族群來源">🌱 <span class="t">族群來源</span></button>
   <div class="finder"><input type="search" id="find" placeholder="🔍 找家人" autocomplete="off"><div class="res hidden" id="findRes"></div></div>
   <span class="sep"></span>
   <div class="zoomgrp">
@@ -779,6 +797,7 @@ function renderPanel(focusName) {
       <label for="fTribe">族籍</label>
       <select id="fTribe" ${dis}>${tribeOptions(p.tribe)}</select>
       <input type="text" id="fTribeO" class="hidden" style="margin-top:6px" value="${FT.TRIBES.includes(p.tribe) ? '' : esc(p.tribe)}" placeholder="例如：越南、印尼……" autocomplete="off" ${dis}>
+      <div class="oline" id="fOrigin"></div>
     </div>
     <div class="field">
       <label>相片（可以不放）</label>
@@ -828,7 +847,11 @@ function renderPanel(focusName) {
     $('#pv').innerHTML = `完整族名：<b>${tn ? esc(tn) : '—'}</b><br>${how}${tnote ? `<div class="tnote">${tnote}</div>` : ''}`;
   };
   updPreview();
-  const changed = () => { if (!viewing) saveMine(); renderTree(); updPreview(); refreshHeading(); };
+  const updOrigin = () => { const o = $('#fOrigin'); if (!o) return;
+    o.innerHTML = `<span>🌱 族群來源：${originSummary(p.id)}</span><button class="linkbtn" id="fOriginGo">看怎麼算的</button>`;
+    $('#fOriginGo').onclick = () => originDialog(p.id); };
+  updOrigin();
+  const changed = () => { if (!viewing) saveMine(); renderTree(); updPreview(); refreshHeading(); updOrigin(); };
   const refreshHeading = () => {
     const k = FT.kinMap(tree)[p.id];
     panel.querySelector('h2').innerHTML = `<span class="k">${esc(k.zh)}${k.term ? '・' + esc(k.term) : ''}</span>${esc(displayName(p, tree.people) || '（還沒填名字）')}`;
@@ -881,7 +904,7 @@ function renderPanel(focusName) {
       const nf = np.fatherId && tree.people[np.fatherId];
       $('#qPv').innerHTML = `完整族名：<b>${tn ? esc(tn) : '—'}</b>${np.given && nf && nf.given ? `（${esc(np.given)}＋爸爸的名字 ${esc(nf.given)}）` : ''}`;
     };
-    const qChanged = () => { saveMine(); renderTree(); updQ(); updPreview(); refreshHeading(); };
+    const qChanged = () => { saveMine(); renderTree(); updQ(); updPreview(); refreshHeading(); updOrigin(); };
     updQ();
     $('#qGiven').oninput = e => { np.given = e.target.value.replace(/\s+/g, ' ').trim(); qChanged(); };
     $('#qHan').oninput = e => { np.han = e.target.value.trim(); qChanged(); };
@@ -997,6 +1020,51 @@ $('#fileOne').onchange = async e => {
 };
 
 /* ---------- 稱謂表 ---------- */
+/* ---------- 族群來源 ---------- */
+const OCOL = { '泰雅族': '#a8231c', '漢族': '#2f4858' };
+const OPAL = ['#b07a1e', '#2e6b3f', '#8a5a3b', '#6b4a7a', '#2a7a7a', '#b5532f', '#4f6a2a', '#7a3b52'];
+function originColors(mix) {
+  const col = {}; let k = 0;
+  Object.keys(mix).sort().forEach(t => { if (t) col[t] = OCOL[t] || OPAL[k++ % OPAL.length]; });
+  return col;
+}
+const tribeLabel = t => t || '未填寫';
+// 比例大的在前；一樣大時泰雅族先，其他照名稱；未填寫放最後
+const oSort = (a, b) => (!a[0]) - (!b[0]) || (b[1] - a[1] > 1e-9 ? 1 : a[1] - b[1] > 1e-9 ? -1 : 0) || (b[0] === '泰雅族') - (a[0] === '泰雅族') || a[0].localeCompare(b[0], 'zh-Hant');
+function originSummary(id) {
+  const { mix } = FT.ancestry(tree, id);
+  return Object.entries(mix).sort(oSort).map(([t, v]) => `${esc(tribeLabel(t))} <b>${FT.fracText(v)}</b>`).join('、');
+}
+function originDialog(id) {
+  const P = tree.people, p = P[id], K = FT.kinMap(tree);
+  const { mix, src } = FT.ancestry(tree, id);
+  const col = originColors(mix);
+  const rows = Object.entries(mix).sort(oSort);
+  const pct = v => (Math.round(v * 1000) / 10) + '%';
+  const bar = rows.map(([t, v]) => `<span class="${t ? '' : 'unk'}" style="width:${v * 100}%;${t ? 'background:' + col[t] : ''}" title="${esc(tribeLabel(t))} ${FT.fracText(v)}">${v >= 0.12 ? esc(FT.tribeShort(t) || '未填') + ' ' + FT.fracText(v) : ''}</span>`).join('');
+  const legend = rows.map(([t, v]) => `<i style="${t ? 'background:' + col[t] : 'background:repeating-linear-gradient(45deg,#cfc6bb 0 4px,#bdb3a7 4px 8px)'}"></i><span>${esc(tribeLabel(t))}</span><span class="fr">${FT.fracText(v)}</span><span class="pc">${pct(v)}</span>`).join('');
+  const bio = q => (q.fatherId && P[q.fatherId] && !q.adoptF) || (q.motherId && P[q.motherId] && !q.adoptM);
+  const why = (i, v) => {
+    const q = P[i];
+    if (i === id) return v >= 1 - 1e-9 ? '還沒填爸媽，用自己的族籍算' : '爸媽有一位還沒填（或是收養），這一半用自己的族籍算';
+    if (bio(q)) return '再上面的祖先沒有填族籍，用他的族籍算';
+    return '沒有再往上填，用他的族籍算';
+  };
+  const nm = i => esc(displayName(P[i], P) || '（未填名字）');
+  const table = src.map(([i, v]) => `<tr><td>${esc(K[i].zh)}</td><td>${i === id ? nm(i) : `<button data-go="${i}">${nm(i)}</button>`}</td><td>${P[i].tribe ? esc(P[i].tribe) : '<b style="color:#a8231c">未填寫</b>'}</td><td class="r">${FT.fracText(v)}</td></tr><tr><td></td><td colspan="3" class="why">${why(i, v)}</td></tr>`).join('');
+  const nUnk = src.filter(([i]) => !(P[i].tribe || '').trim()).length;
+  const who = id === tree.meId ? '我' : '「' + (displayName(p, P) || K[id].zh) + '」';
+  const m = modal(`🌱 ${id === tree.meId ? '我的族群來源' : esc(who) + '的族群來源'}`,
+    `<div class="obar">${bar}</div>
+     <div class="olegend">${legend}</div>
+     ${nUnk ? `<div class="onote" style="border-color:#a8231c;background:#fbe9e4">有 <b>${nUnk}</b> 位家人還沒填族籍，點下面的名字去幫他填，結果會更完整。</div>` : ''}
+     <div class="welcome-intro"><b>怎麼算的？</b>爸爸、媽媽各占一半；爺爺、奶奶、外公、外婆各占四分之一……一代一代往上，把每位祖先填的「族籍」加起來。還沒填爸媽的人，就用他自己的族籍來算；收養的關係不算在裡面。</div>
+     <div class="onote">這只是用族譜資料算出來的數字，<b>不代表${id === tree.meId ? '你' : '一個人'}「有多少」是哪一族</b>。是不是泰雅人、認同哪個文化，看的是和家人、部落、語言、文化的連結，不是分數。法律上的原住民身分，也不是用比例來認定的。</div>
+     <div class="sect">用了誰的族籍</div>
+     <table class="otable"><tr><th>稱謂</th><th>名字</th><th>族籍</th><th style="text-align:right">占多少</th></tr>${table}</table>`,
+    [{ label: '關閉', cls: 'primary' }], { wide: true });
+  m.el.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { m.close(); select(b.dataset.go); focusPerson(b.dataset.go, Math.max(view.s, 0.8)); });
+}
 function termsDialog() {
   const t = tree;
   const rows = FT.TERM_DEFS.map(([k, zh, def]) => {
@@ -1268,6 +1336,7 @@ $('#bExport').onclick = exportMine;
 $('#bImport').onclick = () => $('#fileOne').click();
 $('#bPrint').onclick = printCurrent;
 $('#bTerms').onclick = () => tree && termsDialog();
+$('#bOrigin').onclick = () => tree && originDialog(tree.meId);
 $('#bIn').onclick = () => { const r = $('#vp').getBoundingClientRect(); zoomAt(1.2, r.width / 2, r.height / 2); };
 $('#bOut').onclick = () => { const r = $('#vp').getBoundingClientRect(); zoomAt(1 / 1.2, r.width / 2, r.height / 2); };
 $('#bFit').onclick = fitView;
@@ -1282,6 +1351,7 @@ $('#bHelp').onclick = () => modal('❓ 使用說明', `
     <li>點一個人，在「特殊關係」可以標註<b>離婚</b>（夫妻線變成灰色虛線）或<b>收養</b>（綠色虛線，卡片標「收養」）。</li>
     <li>兄弟姊妹的順序排錯了：<b>按住卡片不放，等卡片浮起來</b>，拖到其他兄弟姊妹之間（會出現黃色直線），放開就換好了，排行和「哥哥／弟弟」的稱謂會跟著改。</li>
     <li>放相片：點一個人，按「📷 選相片」，可以拍照或從相簿選。相片會自動縮小、裁成圓形，取代原本的小人圖。</li>
+    <li>「🌱 族群來源」會依每位家人填的族籍，算出族群來源（例如泰雅族 3/4、漢族 1/4），也會列出用了誰的族籍。這只是資料計算，不代表一個人「有多少」是哪一族。</li>
     <li>過世的家人：點他的卡片，勾選「<b>已過世</b>」，卡片會變成灰色並標示「已過世」。</li>
     <li>族名欄<b>只填這個人自己的名字</b>，爸爸的名字會自動接在後面（子連父名）。家裡寫法不一樣時，到「更多設定」自己打完整族名。</li>
     <li>資料會<b>自動存在這台裝置</b>。做完或下課前，按「💾 匯出檔案」，把檔案交給老師。</li>
@@ -1300,7 +1370,7 @@ $('#bHelp').onclick = () => modal('❓ 使用說明', `
 $('#bNew').onclick = clearDialog;
 (function moreMenu() {
   const menu = $('#moreMenu');
-  const items = [['#bImport', '📂 開啟檔案'], ['#bTerms', '🗣️ 稱謂表'], ['#bHelp', '❓ 說明'], ['#bTeacher', '👩‍🏫 老師檢視'], ['#bNew', '🧹 清除資料']];
+  const items = [['#bImport', '📂 開啟檔案'], ['#bTerms', '🗣️ 稱謂表'], ['#bOrigin', '🌱 族群來源'], ['#bHelp', '❓ 說明'], ['#bTeacher', '👩‍🏫 老師檢視'], ['#bNew', '🧹 清除資料']];
   $('#bMore').onclick = e => {
     e.stopPropagation();
     if (!menu.classList.contains('hidden')) { menu.classList.add('hidden'); return; }
