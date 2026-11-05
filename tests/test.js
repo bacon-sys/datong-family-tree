@@ -341,5 +341,36 @@ for (const f of ['sample_15.json', 'sample_155.json']) sibCheck(FT.validate(JSON
   const old = JSON.parse(JSON.stringify(td)); delete old.people[f].deceased;
   eq(FT.validate(old).people[f].deceased, false, '舊版檔案（沒有這個欄位）可以正常開啟');
 }
+
+// 拖拉換順序
+{
+  const tr = FT.newTree({ given: 'Me', gender: 'F' });
+  const A = (a, r) => FT.addRelative(tr, a, r).id, Pr = tr.people;
+  const b1 = A(tr.meId, 'olderBrother'), s1 = A(tr.meId, 'youngerSister'), s2 = A(tr.meId, 'youngerSister');
+  const ord = () => FT.unitSiblings(tr.meId, Pr).map(q => q.id);
+  const start = ord();
+  eq(start[0], b1, '換順序前：哥哥排第一');
+  ok(FT.reorderSiblings(tr, b1, start[3]), '把哥哥拖到最後');
+  eq(ord()[3], b1, '哥哥變成最後一個');
+  eq(FT.kinMap(tr)[b1].zh, '弟弟', '換到後面之後，稱謂自動變成弟弟');
+  ok(FT.reorderSiblings(tr, b1, null), '再拖回最前面');
+  eq(ord().join(), start.join(), '拖回最前面後恢復原本順序');
+  ok(!FT.reorderSiblings(tr, b1, null), '放回原位：沒有改變');
+  // 同父異母手足的排行不受影響
+  const dad = Pr[tr.meId].fatherId, sm = A(dad, 'spouse');
+  const half = FT.addRelative(tr, dad, 'son', { otherParentId: sm }).id;
+  const hb = Pr[half].bo;
+  FT.reorderSiblings(tr, s2, null);
+  eq(Pr[half].bo, hb, '同父異母的弟弟排行不變');
+  eq(new Set(FT.unitSiblings(tr.meId, Pr).map(q => q.bo)).size, 4, '換完排行不重複');
+  // 排行有空白或重複時也能換
+  Pr[b1].bo = null; Pr[s1].bo = 2; Pr[s2].bo = 2;
+  ok(FT.reorderSiblings(tr, tr.meId, null) !== undefined, '排行不完整時也能換');
+  eq(FT.unitSiblings(tr.meId, Pr)[0].id, tr.meId, '排行不完整時，換完我排第一');
+  eq(new Set(FT.unitSiblings(tr.meId, Pr).map(q => q.bo)).size, 4, '排行不完整時，換完排行不重複');
+  // 排版跟著變
+  const L = FT.layout(tr), xs = FT.unitSiblings(tr.meId, Pr).map(q => L.pos[q.id].x);
+  ok(xs.every((x, i) => !i || x > xs[i - 1]), '換順序後畫面由左到右照新順序');
+}
 console.log(`\n✓ ${pass}/${pass + fail} 通過` + (fail ? `（${fail} 項失敗）` : ''));
 process.exit(fail ? 1 : 0);

@@ -309,6 +309,32 @@ const FT = (() => {
     throw new Error('不認得的關係：' + rel);
   }
 
+  /* ---------- 拖拉換順序 ---------- */
+  // 同一對父母（爸爸、媽媽都一樣）的孩子，依排行排好
+  function unitSiblings(id, people) {
+    const p = people[id]; if (!p || (!p.fatherId && !p.motherId)) return [];
+    return Object.values(people).filter(q => q.fatherId === p.fatherId && q.motherId === p.motherId)
+      .sort((a, b) => ((a.bo == null ? 1e9 : a.bo) - (b.bo == null ? 1e9 : b.bo)));
+  }
+  // 把 id 移到 afterId 後面（afterId 為 null：移到最前面）。
+  // 只在這組兄弟姊妹原本佔的排行之間互換，同父異母／同母異父的手足排行不會被動到。
+  function reorderSiblings(tree, id, afterId) {
+    const people = tree.people;
+    let group = unitSiblings(id, people);
+    if (group.length < 2) return false;
+    let slots = group.map(q => q.bo);
+    if (slots.some(v => v == null) || new Set(slots).size !== slots.length) {
+      normalizeBo(sibGroup(id, people)); group = unitSiblings(id, people); slots = group.map(q => q.bo);
+    }
+    const before = group.map(q => q.id).join();
+    const rest = group.filter(q => q.id !== id);
+    const at = afterId == null ? 0 : rest.findIndex(q => q.id === afterId) + 1;
+    if (afterId != null && at === 0) return false;
+    rest.splice(at, 0, people[id]);
+    rest.forEach((q, i) => { q.bo = slots[i]; });
+    return rest.map(q => q.id).join() !== before;
+  }
+
   /* ---------- 特殊關係 ---------- */
   function setDivorced(tree, a, b, on) {
     const P = tree.people; if (!P[a] || !P[b] || !P[a].spouses.includes(b)) return;
@@ -722,6 +748,6 @@ const FT = (() => {
 
   return { TERM_DEFS, DEFAULT_TERMS, makePerson, newTree, tribalName, childrenOf, siblingsOf, kinMap, addRelative,
     deletePreview, deletePerson, layout, generations, validate, isotonic, DIM, paths, branchIds, subsetPeople,
-    TRIBES, PATRONYMIC, tribeShort, setDivorced, isDivorced, isAdopted };
+    TRIBES, PATRONYMIC, tribeShort, setDivorced, isDivorced, isAdopted, unitSiblings, reorderSiblings };
 })();
 if (typeof module !== 'undefined') module.exports = FT;

@@ -98,6 +98,13 @@ header.top .who b{color:#fff}
 .card.me .kin .term{color:#ffe1d6}
 .card.sel{outline:5px solid var(--gold);outline-offset:3px}
 .card.new{outline:5px dashed var(--ok);outline-offset:3px}
+.card{-webkit-touch-callout:none}
+.card.pressing{transform:scale(.97);transition:transform .25s}
+.card.lift{z-index:50;transform:scale(1.06) rotate(-1.5deg);box-shadow:0 14px 30px rgba(40,25,10,.38);cursor:grabbing;outline:none}
+.card.lift.nodrop{opacity:.55}
+.card.drop{outline:4px dashed var(--gold);outline-offset:4px}
+.dropbar{position:absolute;width:12px;border-radius:999px;background:var(--gold);box-shadow:0 0 0 3px #fff,0 0 12px rgba(0,0,0,.25);z-index:40;pointer-events:none}
+.dropbar.hidden{display:none}
 .quick{border:3px solid var(--ok);background:#eef7f0;border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .quick .qh{font-size:18px;color:var(--ok);font-weight:700}
 .quick .qh b{color:var(--black)}
@@ -284,7 +291,7 @@ body.printdoc .pbar{position:sticky;top:0;background:var(--black);color:#fff;pad
 <div class="main" id="main">
   <div class="viewport" id="vp">
     <div class="stage" id="stage"><svg id="lines"></svg><div id="cards"></div></div>
-    <div class="hint" id="hint">點一下卡片 → 加家人、改名字　｜　拖曳移動畫面　｜　兩指或滾輪縮放</div>
+    <div class="hint" id="hint">點一下卡片 → 加家人、改名字　｜　按住卡片再拖 → 換兄弟姊妹順序　｜　拖曳空白處移動畫面　｜　兩指或滾輪縮放</div>
     <div class="readonly-bar hidden" id="roBar"></div>
   </div>
   <aside class="panel hidden" id="panel"></aside>
@@ -602,6 +609,32 @@ const FT = (() => {
       return { id: p.id, created, note };
     }
     throw new Error('不認得的關係：' + rel);
+  }
+
+  /* ---------- 拖拉換順序 ---------- */
+  // 同一對父母（爸爸、媽媽都一樣）的孩子，依排行排好
+  function unitSiblings(id, people) {
+    const p = people[id]; if (!p || (!p.fatherId && !p.motherId)) return [];
+    return Object.values(people).filter(q => q.fatherId === p.fatherId && q.motherId === p.motherId)
+      .sort((a, b) => ((a.bo == null ? 1e9 : a.bo) - (b.bo == null ? 1e9 : b.bo)));
+  }
+  // 把 id 移到 afterId 後面（afterId 為 null：移到最前面）。
+  // 只在這組兄弟姊妹原本佔的排行之間互換，同父異母／同母異父的手足排行不會被動到。
+  function reorderSiblings(tree, id, afterId) {
+    const people = tree.people;
+    let group = unitSiblings(id, people);
+    if (group.length < 2) return false;
+    let slots = group.map(q => q.bo);
+    if (slots.some(v => v == null) || new Set(slots).size !== slots.length) {
+      normalizeBo(sibGroup(id, people)); group = unitSiblings(id, people); slots = group.map(q => q.bo);
+    }
+    const before = group.map(q => q.id).join();
+    const rest = group.filter(q => q.id !== id);
+    const at = afterId == null ? 0 : rest.findIndex(q => q.id === afterId) + 1;
+    if (afterId != null && at === 0) return false;
+    rest.splice(at, 0, people[id]);
+    rest.forEach((q, i) => { q.bo = slots[i]; });
+    return rest.map(q => q.id).join() !== before;
   }
 
   /* ---------- 特殊關係 ---------- */
@@ -1017,7 +1050,7 @@ const FT = (() => {
 
   return { TERM_DEFS, DEFAULT_TERMS, makePerson, newTree, tribalName, childrenOf, siblingsOf, kinMap, addRelative,
     deletePreview, deletePerson, layout, generations, validate, isotonic, DIM, paths, branchIds, subsetPeople,
-    TRIBES, PATRONYMIC, tribeShort, setDivorced, isDivorced, isAdopted };
+    TRIBES, PATRONYMIC, tribeShort, setDivorced, isDivorced, isAdopted, unitSiblings, reorderSiblings };
 })();
 if (typeof module !== 'undefined') module.exports = FT;
 
@@ -1246,11 +1279,84 @@ function zoomAt(f, cx, cy) {
 /* ---------- 拖曳、縮放、點選 ---------- */
 (function interactions() {
   const vp = $('#vp'); const pts = new Map(); let start = null, moved = false, pinch = null;
+  // ---- 按住卡片拖拉，換兄弟姊妹順序 ----
+  let press = null, drag = null;
+  const canDrag = id => !viewing && tree && tree.people[id] && FT.unitSiblings(id, tree.people).length >= 2;
+  const toStage = e => { const r = vp.getBoundingClientRect(); return { x: (e.clientX - r.left - view.x) / view.s, y: (e.clientY - r.top - view.y) / view.s }; };
+  const cancelPress = () => { if (press) { clearTimeout(press.timer); press.card.classList.remove('pressing'); press = null; } };
+  // 一個人連同旁邊的配偶（同一列、相鄰）佔的範圍
+  const extOf = id => {
+    const L = lastLayout, D = L.dim, p0 = L.pos[id]; let lo = p0.x, hi = p0.x + D.W;
+    const near = [id]; let grew = true;
+    while (grew) { grew = false;
+      near.slice().forEach(m => tree.people[m].spouses.forEach(sp => { const q = L.pos[sp];
+        if (q && !near.includes(sp) && q.y === p0.y && Math.abs(q.x - L.pos[m].x) <= D.W + D.coupleGap + 1) { near.push(sp); lo = Math.min(lo, q.x); hi = Math.max(hi, q.x + D.W); grew = true; } })); }
+    return [lo, hi];
+  };
+  function startDrag(card, e) {
+    const id = card.dataset.id, L = lastLayout, D = L.dim;
+    const sibs = FT.unitSiblings(id, tree.people).map(q => q.id).filter(x => x !== id && L.pos[x])
+      .map(x => ({ id: x, ext: extOf(x) })).sort((a, b) => a.ext[0] - b.ext[0]);
+    const p0 = L.pos[id];
+    const bar = document.createElement('div'); bar.className = 'dropbar hidden';
+    const bw = Math.max(12, 9 / view.s), ext = Math.max(34, 24 / view.s);
+    bar.style.top = (p0.y - ext) + 'px'; bar.style.height = (D.H + ext * 2) + 'px'; bar.style.width = bw + 'px';
+    $('#cards').appendChild(bar);
+    card.classList.remove('pressing'); card.classList.add('lift');
+    sibs.forEach(sb => { const c = document.querySelector(`.card[data-id="${sb.id}"]`); if (c) c.classList.add('drop'); });
+    const pt = toStage(e);
+    drag = { id, card, sibs, bar, p0, bw, grab: { x: pt.x - p0.x, y: pt.y - p0.y }, after: undefined, ok: false,
+      lo: Math.min(...sibs.map(z => z.ext[0]), p0.x) - D.W * 0.8, hi: Math.max(...sibs.map(z => z.ext[1]), p0.x + D.W) + D.W * 0.8 };
+    moved = true; vp.classList.add('dragging');
+    if (navigator.vibrate) try { navigator.vibrate(15); } catch (err) {}
+  }
+  function moveDrag(e) {
+    const D = lastLayout.dim, pt = toStage(e), d = drag;
+    d.card.style.left = (pt.x - d.grab.x) + 'px'; d.card.style.top = (pt.y - d.grab.y) + 'px';
+    const cx = pt.x - d.grab.x + D.W / 2, cy = pt.y - d.grab.y + D.H / 2;
+    d.ok = Math.abs(cy - (d.p0.y + D.H / 2)) < D.H * 0.9 && cx > d.lo && cx < d.hi;
+    d.card.classList.toggle('nodrop', !d.ok);
+    if (!d.ok) { d.bar.classList.add('hidden'); d.after = undefined; return; }
+    const left = d.sibs.filter(z => (z.ext[0] + z.ext[1]) / 2 < cx), right = d.sibs.filter(z => (z.ext[0] + z.ext[1]) / 2 >= cx);
+    const L0 = left[left.length - 1], R0 = right[0];
+    d.after = L0 ? L0.id : null;
+    const bx = L0 && R0 ? (L0.ext[1] + R0.ext[0]) / 2 : L0 ? L0.ext[1] + 28 : R0.ext[0] - 28;
+    d.bar.style.left = (bx - d.bw / 2) + 'px'; d.bar.classList.remove('hidden');
+  }
+  function endDrag(cancel) {
+    const d = drag; drag = null; vp.classList.remove('dragging');
+    const p = tree.people[d.id];
+    let changed = false;
+    if (!cancel && d.ok && d.after !== undefined) changed = FT.reorderSiblings(tree, d.id, d.after);
+    if (changed) {
+      saveMine(); renderTree();
+      if (selId && !$('#panel').classList.contains('hidden')) renderPanel();
+      const n = FT.unitSiblings(d.id, tree.people).findIndex(q => q.id === d.id) + 1;
+      const nm = displayName(p, tree.people) || FT.kinMap(tree)[d.id].zh;
+      const edge = p.spouses.some(sp => { const q = tree.people[sp]; return q && (q.fatherId || q.motherId) && lastLayout.pos[sp] && lastLayout.pos[sp].y === lastLayout.pos[d.id].y; });
+      toast(`已把「${nm}」換到兄弟姊妹中的第 ${n} 個` + (edge ? '。因為配偶那邊的家人也有填，畫面上他會排在靠配偶的那一端' : ''), edge ? 6000 : 3200);
+      ensureVisible(d.id);
+    } else {
+      renderTree();
+      if (!cancel && !d.ok) toast('要放在其他兄弟姊妹之間（出現黃色直線的地方）才會換順序', 3600);
+    }
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && drag) { e.stopPropagation(); endDrag(true); } }, true);
+  vp.addEventListener('contextmenu', e => { if (e.target.closest && e.target.closest('.card')) e.preventDefault(); });
   vp.addEventListener('pointerdown', e => {
     try { vp.setPointerCapture(e.pointerId); } catch (err) {}
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pts.size === 1) { start = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, target: e.target }; moved = false; }
+    if (pts.size === 1) {
+      start = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, target: e.target }; moved = false;
+      const card = e.target.closest && e.target.closest('.card');
+      if (card && canDrag(card.dataset.id)) {
+        card.classList.add('pressing');
+        const ev = { clientX: e.clientX, clientY: e.clientY };
+        press = { card, timer: setTimeout(() => { const c = press.card; press = null; startDrag(c, ev); }, e.pointerType === 'mouse' ? 300 : 450) };
+      }
+    }
     if (pts.size === 2) {
+      cancelPress(); if (drag) endDrag(true);
       const [a, b] = [...pts.values()];
       pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), s: view.s, vx: view.x, vy: view.y, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
       moved = true;
@@ -1268,9 +1374,10 @@ function zoomAt(f, cx, cy) {
       view.x = mx - (cx - pinch.vx) * ns / pinch.s; view.y = my - (cy - pinch.vy) * ns / pinch.s; view.s = ns; applyView();
       return;
     }
+    if (drag && pts.size === 1) { moveDrag(e); return; }
     if (start && pts.size === 1) {
       const dx = e.clientX - start.x, dy = e.clientY - start.y;
-      if (Math.abs(dx) + Math.abs(dy) > 6) { moved = true; vp.classList.add('dragging'); }
+      if (Math.abs(dx) + Math.abs(dy) > 6) { moved = true; cancelPress(); vp.classList.add('dragging'); }
       if (moved) { view.x = start.vx + dx; view.y = start.vy + dy; applyView(); }
     }
   });
@@ -1279,6 +1386,8 @@ function zoomAt(f, cx, cy) {
     pts.delete(e.pointerId);
     if (pts.size < 2) pinch = null;
     if (pts.size === 0) {
+      cancelPress();
+      if (drag) { endDrag(e.type === 'pointercancel'); start = null; return; }
       vp.classList.remove('dragging');
       if (start && !moved) {
         const card = start.target.closest && start.target.closest('.card');
@@ -1849,6 +1958,7 @@ $('#bHelp').onclick = () => modal('❓ 使用說明', `
     <li><b>點一下任何一張卡片</b>，在旁邊按「＋爸爸」「＋媽媽」「＋哥哥」……就會長出新卡片，在綠色框裡填名字。畫面會停在原本那個人，可以接著一直加。</li>
     <li>每個人可以選<b>族籍</b>（16 族、漢族、新住民或自己填），卡片右下角會顯示。</li>
     <li>點一個人，在「特殊關係」可以標註<b>離婚</b>（夫妻線變成灰色虛線）或<b>收養</b>（綠色虛線，卡片標「收養」）。</li>
+    <li>兄弟姊妹的順序排錯了：<b>按住卡片不放，等卡片浮起來</b>，拖到其他兄弟姊妹之間（會出現黃色直線），放開就換好了，排行和「哥哥／弟弟」的稱謂會跟著改。</li>
     <li>過世的家人：點他的卡片，勾選「<b>已過世</b>」，卡片會變成灰色並標示「已過世」。</li>
     <li>族名欄<b>只填這個人自己的名字</b>，爸爸的名字會自動接在後面（子連父名）。家裡寫法不一樣時，到「更多設定」自己打完整族名。</li>
     <li>資料會<b>自動存在這台裝置</b>。做完或下課前，按「💾 匯出檔案」，把檔案交給老師。</li>
