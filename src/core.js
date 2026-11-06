@@ -56,7 +56,15 @@ const FT = (() => {
       tribe: o.tribe || '',        // 族籍
       deceased: !!o.deceased,      // 已過世
       photo: safePhoto(o.photo),   // 相片（縮好的小圖，data URL）
+      story: cleanStory(o.story),  // 小故事
     };
+  }
+  const STORY_MAX = 300, STORY_LINES = 12;
+  // 小故事：最多 300 字、12 行（多的行接到第 12 行後面，列印時才放得進格子）
+  function cleanStory(v) {
+    if (typeof v !== 'string') return '';
+    const ls = v.slice(0, STORY_MAX).split('\n');
+    return (ls.length > STORY_LINES ? [...ls.slice(0, STORY_LINES - 1), ls.slice(STORY_LINES - 1).join(' ')] : ls).join('\n');
   }
   // 只接受圖片的 data URL（避免匯入的檔案夾帶其他東西），太大的不收
   const PHOTO_MAX = 300000;
@@ -832,6 +840,6 @@ const FT = (() => {
 
   return { TERM_DEFS, DEFAULT_TERMS, makePerson, newTree, tribalName, childrenOf, siblingsOf, kinMap, addRelative,
     deletePreview, deletePerson, layout, generations, validate, isotonic, DIM, paths, branchIds, subsetPeople,
-    TRIBES, PATRONYMIC, tribeShort, setDivorced, isDivorced, isAdopted, unitSiblings, reorderSiblings, safePhoto, stripPhotos, PHOTO_MAX, ancestry, fracText, setBirthOrder };
+    TRIBES, PATRONYMIC, tribeShort, setDivorced, isDivorced, isAdopted, unitSiblings, reorderSiblings, safePhoto, stripPhotos, PHOTO_MAX, ancestry, fracText, setBirthOrder, STORY_MAX, cleanStory };
 })();
 if (typeof module !== 'undefined') module.exports = FT;

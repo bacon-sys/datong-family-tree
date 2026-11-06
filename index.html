@@ -79,6 +79,30 @@ header.top .who b{color:#fff}
 .card.blank .av{opacity:.45}
 .card .empty{color:#7a6c62;font-weight:500;font-size:16px}
 .card .chips{position:absolute;right:8px;bottom:6px;display:flex;gap:4px;align-items:center}
+.card .storyb{position:absolute;left:6px;bottom:5px;border:1.5px solid #b07a1e;background:#fdf1df;color:#7a4f0e;border-radius:8px;font-size:14px;font-weight:700;line-height:20px;padding:0 6px;cursor:pointer;font-family:inherit}
+.card .storyb:hover{background:#f8e2bd}
+.card .chips.tight span{font-size:12.5px!important;padding:0 4px!important}
+.card .storyb.mini{left:42px;bottom:auto;top:58px;width:30px;height:30px;padding:0;border-radius:50%;font-size:15px;line-height:26px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.sthead{display:flex;gap:16px;align-items:center;margin-bottom:14px}
+.stav{width:96px;height:96px;border-radius:50%;overflow:hidden;flex:none;border:3px solid #cdbba5;background:#f4ece0}
+.stav img,.stav svg{width:100%;height:100%;display:block;object-fit:cover}
+.stav.dead{filter:grayscale(1);opacity:.8}
+.stk{color:var(--red);font-weight:900;font-size:19px}.stk span{font-style:italic;font-weight:400;margin-left:10px;color:var(--muted)}
+.stn{font-size:26px;font-weight:900;line-height:1.3}
+.sts{color:var(--muted);font-size:17px}
+.sttext{font-size:21px;line-height:1.9;white-space:pre-wrap;background:#fffaf2;border-left:6px solid #b07a1e;padding:14px 18px;border-radius:0 12px 12px 0;min-height:120px}
+.stnav{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap;font-size:17px}
+.stnav .btn:disabled{opacity:.35}
+.storycount{font-size:15px;color:var(--muted);text-align:right}
+.pg .stories{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:4mm;height:164mm}
+.pg .st{border:1.5px solid #cdbba5;border-radius:10px;padding:3mm 4mm;overflow:hidden;display:flex;flex-direction:column;gap:2mm}
+.pg .st .h{display:flex;gap:3mm;align-items:center}
+.pg .st .a{width:15mm;height:15mm;border-radius:50%;overflow:hidden;flex:none;background:#f4ece0;border:1px solid #cdbba5}
+.pg .st .a img,.pg .st .a svg{width:100%;height:100%;display:block;object-fit:cover}
+.pg .st .a.dead{filter:grayscale(1)}
+.pg .st .k{color:#a8231c;font-weight:900;font-size:14px}
+.pg .st .n{font-weight:900;font-size:17px;line-height:1.2}
+.pg .st .x{font-size:13.5px;line-height:1.6;white-space:pre-wrap}
 .card .chips span{font-size:14px;font-weight:700;border-radius:8px;padding:0 7px;line-height:22px;white-space:nowrap}
 .card .g{color:#fff}
 .card .tr{background:#f4ece0;color:#5b4a3f;border:1px solid #cdbba5;line-height:20px!important}
@@ -129,7 +153,8 @@ details.more summary{font-weight:700;cursor:pointer;font-size:17px;color:var(--m
 details.more[open]{display:flex;flex-direction:column;gap:12px;padding-bottom:12px}
 .field label{display:block;font-weight:700;font-size:17px;margin-bottom:4px}
 .field input[type=text],.field input[type=number]{width:100%;font-size:20px;padding:10px 12px;border:2px solid #cdbba5;border-radius:10px;background:#fffdf9}
-.field input:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 3px rgba(168,35,28,.15)}
+.field input:focus,.field textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 3px rgba(168,35,28,.15)}
+.field textarea{width:100%;font-size:19px;line-height:1.7;padding:10px 12px;border:2px solid #cdbba5;border-radius:10px;background:#fffdf9;font-family:inherit;resize:vertical;min-height:120px}
 .field .note{font-size:15px;color:var(--muted);margin-top:4px}
 .preview{background:var(--sand);border-radius:10px;padding:6px 12px;font-size:15px;margin-top:6px;color:var(--muted)}
 .preview b{font-size:20px;color:var(--black);margin:0 4px}
@@ -384,7 +409,15 @@ const FT = (() => {
       tribe: o.tribe || '',        // 族籍
       deceased: !!o.deceased,      // 已過世
       photo: safePhoto(o.photo),   // 相片（縮好的小圖，data URL）
+      story: cleanStory(o.story),  // 小故事
     };
+  }
+  const STORY_MAX = 300, STORY_LINES = 12;
+  // 小故事：最多 300 字、12 行（多的行接到第 12 行後面，列印時才放得進格子）
+  function cleanStory(v) {
+    if (typeof v !== 'string') return '';
+    const ls = v.slice(0, STORY_MAX).split('\n');
+    return (ls.length > STORY_LINES ? [...ls.slice(0, STORY_LINES - 1), ls.slice(STORY_LINES - 1).join(' ')] : ls).join('\n');
   }
   // 只接受圖片的 data URL（避免匯入的檔案夾帶其他東西），太大的不收
   const PHOTO_MAX = 300000;
@@ -1160,7 +1193,7 @@ const FT = (() => {
 
   return { TERM_DEFS, DEFAULT_TERMS, makePerson, newTree, tribalName, childrenOf, siblingsOf, kinMap, addRelative,
     deletePreview, deletePerson, layout, generations, validate, isotonic, DIM, paths, branchIds, subsetPeople,
-    TRIBES, PATRONYMIC, tribeShort, setDivorced, isDivorced, isAdopted, unitSiblings, reorderSiblings, safePhoto, stripPhotos, PHOTO_MAX, ancestry, fracText, setBirthOrder };
+    TRIBES, PATRONYMIC, tribeShort, setDivorced, isDivorced, isAdopted, unitSiblings, reorderSiblings, safePhoto, stripPhotos, PHOTO_MAX, ancestry, fracText, setBirthOrder, STORY_MAX, cleanStory };
 })();
 if (typeof module !== 'undefined') module.exports = FT;
 
@@ -1255,7 +1288,9 @@ function modal(title, bodyHTML, buttons, opts = {}) {
     el.onclick = () => { const r = b.onClick ? b.onClick(bg) : undefined; if (r !== false) close(); };
     mf.appendChild(el);
   });
-  if (!opts.locked) { bg.addEventListener('click', e => { if (e.target === bg) close(); }); bg.querySelector('.mx').onclick = close; }
+  // 點背景關閉：要「按下」和「放開」都在背景上才算（觸控時，打開視窗的那一下會在背景補一個 click，不能把剛開的視窗關掉）
+  let downOnBg = false;
+  if (!opts.locked) { bg.addEventListener('pointerdown', e => { downOnBg = e.target === bg; }); bg.addEventListener('click', e => { if (e.target === bg && downOnBg) close(); downOnBg = false; }); bg.querySelector('.mx').onclick = close; }
   root.appendChild(bg);
   return { el: bg, close };
 }
@@ -1314,13 +1349,17 @@ function avatarSVG(g, age) {
 /* ---------- 樹狀圖 ---------- */
 function cardHTML(p, kin, pos, t) {
   const tn = FT.tribalName(p, t.people);
+  // 右下角標籤很多時（例如已過世＋收養＋四個字的族名），標籤縮小、故事記號移到頭像角落
+  const crowded = ((p.deceased ? 3 : 0) + (FT.isAdopted(p) ? 2 : 0) + (FT.tribeShort(p.tribe) || '').length + (p.gender ? 1 : 0)) >= 7;
   const cls = ['card', p.gender || '', p.id === t.meId ? 'me' : '', isBlank(p) ? 'blank' : '', p.id === selId ? 'sel' : '', p.id === justAdded ? 'new' : '', p.deceased ? 'dead' : ''].join(' ');
   return `<div class="${cls}" data-id="${p.id}" style="left:${pos.x}px;top:${pos.y}px">
     <div class="kin"><span>${esc(kin.zh)}</span>${kin.term ? `<span class="term">${esc(kin.term)}</span>` : ''}</div>
     <div class="cb"><div class="av">${p.photo ? `<img src="${esc(photoURL(p.photo))}" alt="" draggable="false">` : `<svg viewBox="0 0 60 60">${avatarSVG(p.gender, ageOf(pos.gen))}</svg>`}</div>
     <div class="tx"><div class="tn">${tn ? esc(tn) : '<span class="empty">（族名未填）</span>'}</div>
     <div class="hn">${p.han ? esc(p.han) : '<span class="empty">漢名未填</span>'}</div></div></div>
-    <div class="chips">${p.deceased ? '<span class="dc">已過世</span>' : ''}${FT.isAdopted(p) ? '<span class="ad">收養</span>' : ''}${p.tribe ? `<span class="tr">${esc(FT.tribeShort(p.tribe))}</span>` : ''}${p.gender ? `<span class="g">${GENDER[p.gender]}</span>` : ''}</div>
+    ${(p.story || '').trim() ? (crowded
+      ? `<button class="storyb mini" data-story="${p.id}" title="看小故事" aria-label="看小故事">📖</button>`
+      : `<button class="storyb" data-story="${p.id}" title="看小故事">📖 故事</button>`) : ''}<div class="chips ${crowded ? 'tight' : ''}">${p.deceased ? '<span class="dc">已過世</span>' : ''}${FT.isAdopted(p) ? '<span class="ad">收養</span>' : ''}${p.tribe ? `<span class="tr">${esc(FT.tribeShort(p.tribe))}</span>` : ''}${p.gender ? `<span class="g">${GENDER[p.gender]}</span>` : ''}</div>
   </div>`;
 }
 function linesSVG(L, t) {
@@ -1502,7 +1541,7 @@ function zoomAt(f, cx, cy) {
     if (pts.size === 1) {
       start = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, target: e.target }; moved = false;
       const card = e.target.closest && e.target.closest('.card');
-      if (card && canDrag(card.dataset.id)) {
+      if (card && canDrag(card.dataset.id) && !e.target.closest('.storyb')) {
         card.classList.add('pressing');
         const ev = { clientX: e.clientX, clientY: e.clientY };
         press = { card, timer: setTimeout(() => { const c = press.card; press = null; startDrag(c, ev); }, e.pointerType === 'mouse' ? 300 : 450) };
@@ -1542,6 +1581,8 @@ function zoomAt(f, cx, cy) {
       cancelPress();
       if (drag) { endDrag(e.type === 'pointercancel'); start = null; return; }
       vp.classList.remove('dragging');
+      const sb = start && !moved && start.target.closest && start.target.closest('.storyb');
+      if (sb) { start = null; storyDialog(sb.dataset.story); return; }
       if (start && !moved) {
         const card = start.target.closest && start.target.closest('.card');
         if (card) select(card.dataset.id); else if (start.target.closest && !start.target.closest('.readonly-bar')) closePanel();
@@ -1643,7 +1684,13 @@ function renderPanel(focusName) {
         ${ro ? '' : `<div class="pbtns"><button class="btn small" id="fPhoto">📷 ${p.photo ? '換一張' : '選相片'}</button>${p.photo ? '<button class="btn small" id="fPhotoDel">移除相片</button>' : ''}</div>`}</div>
       ${ro ? '' : '<div class="note">相片會縮成小圖存在這台裝置；匯出檔案交給老師時，相片也會一起帶過去。</div>'}
     </div>
-    ${p.id === tree.meId ? '' : `<label class="check"><input type="checkbox" id="fDead" ${p.deceased ? 'checked' : ''} ${dis}> 已過世</label>`}`;
+    ${p.id === tree.meId ? '' : `<label class="check"><input type="checkbox" id="fDead" ${p.deceased ? 'checked' : ''} ${dis}> 已過世</label>`}
+    <div class="field">
+      <label for="fStory">📖 小故事（可以不寫，最多 ${FT.STORY_MAX} 字、12 行）</label>
+      <textarea id="fStory" rows="4" maxlength="${FT.STORY_MAX}" placeholder="例如：爺爺年輕時常跟族人上山打獵……" ${dis}>${esc(p.story || '')}</textarea>
+      <div class="storycount" id="fStoryN">${(p.story || '').length} / ${FT.STORY_MAX} 字</div>
+      ${ro ? '' : '<div class="note">寫好的故事，族譜卡片上會出現「📖 故事」，點一下就能看。匯出檔案交給老師時，故事也會一起帶過去。</div>'}
+    </div>`;
   const addHTML = ro ? '' : `<div class="sect">幫「${esc(displayName(p, tree.people) || K.zh)}」加家人</div>
     <div class="addgrid">${ADD_BTNS.map(([r, l]) => `<button data-rel="${r}" ${(r === 'father' && p.fatherId) || (r === 'mother' && p.motherId) ? 'disabled' : ''}>${l}</button>`).join('')}</div>
     ${np ? '<div class="note" style="font-size:15px;color:#6f625a;margin-top:-6px">加好的人會留在「' + esc(displayName(p, tree.people) || K.zh) + '」這裡，可以接著一直加。</div>' : ''}`;
@@ -1728,6 +1775,13 @@ function renderPanel(focusName) {
     inp.click();
   };
   const pdel = $('#fPhotoDel'); if (pdel) pdel.onclick = () => setPhoto('');
+  const sta = $('#fStory');
+  if (sta) sta.oninput = e => {
+    p.story = FT.cleanStory(e.target.value);
+    if (p.story !== e.target.value) { const pos = e.target.selectionStart; e.target.value = p.story; try { e.target.setSelectionRange(pos, pos); } catch (err) {} }
+    $('#fStoryN').textContent = p.story.length + ' / ' + FT.STORY_MAX + ' 字';
+    if (!viewing) saveMine(); renderTree();
+  };
   panel.querySelectorAll('.seg2[data-sp] button').forEach(b => b.onclick = () => {
     FT.setDivorced(tree, p.id, b.parentNode.dataset.sp, b.dataset.v === '1');
     saveMine(); renderTree(); renderPanel(); refreshHeading();
@@ -1873,6 +1927,60 @@ $('#fileOne').onchange = async e => {
 };
 
 /* ---------- 稱謂表 ---------- */
+/* ---------- 小故事 ---------- */
+function storyIds(t) {
+  const G = FT.generations(t), L = FT.layout(t);
+  return Object.values(t.people).filter(p => (p.story || '').trim() && L.pos[p.id])
+    .sort((a, b) => (G[a.id] - G[b.id]) || (L.pos[a.id].x - L.pos[b.id].x)).map(p => p.id);
+}
+function storyDialog(id) {
+  const ids = storyIds(tree); if (!ids.length) return;
+  let i = Math.max(0, ids.indexOf(id));
+  const m = modal('📖 家族故事', '<div id="stBody"></div>', [{ label: '關閉', cls: 'primary' }], { wide: true });
+  const draw = () => {
+    const pid = ids[i], p = tree.people[pid], K = FT.kinMap(tree), pos = lastLayout && lastLayout.pos[pid];
+    const av = p.photo ? `<img src="${esc(photoURL(p.photo))}" alt="">` : `<svg viewBox="0 0 60 60">${avatarSVG(p.gender, ageOf(pos ? pos.gen : 0))}</svg>`;
+    const sub = [FT.tribalName(p, tree.people) && p.han ? p.han : '', p.tribe, p.deceased ? '已過世' : ''].filter(Boolean).map(esc).join('・');
+    m.el.querySelector('#stBody').innerHTML = `<div class="sthead"><div class="stav ${p.deceased ? 'dead' : ''}">${av}</div>
+      <div><div class="stk">${esc(K[pid].zh)}${K[pid].term ? `<span>${esc(K[pid].term)}</span>` : ''}</div><div class="stn">${esc(displayName(p, tree.people) || '（未填名字）')}</div>${sub ? `<div class="sts">${sub}</div>` : ''}</div></div>
+      <div class="sttext">${esc(p.story)}</div>
+      <div class="stnav"><button class="btn" id="stPrev" ${i === 0 ? 'disabled' : ''}>← 上一則</button><span>第 ${i + 1} / ${ids.length} 則</span><button class="btn" id="stNext" ${i === ids.length - 1 ? 'disabled' : ''}>下一則 →</button>
+      ${viewing ? '' : '<button class="btn" id="stEdit" style="margin-left:auto">✏️ 修改</button>'}</div>`;
+    $('#stPrev').onclick = () => { if (i > 0) { i--; draw(); } };
+    $('#stNext').onclick = () => { if (i < ids.length - 1) { i++; draw(); } };
+    const ed = $('#stEdit');
+    if (ed) ed.onclick = () => { m.close(); select(pid); focusPerson(pid, Math.max(view.s, 0.8));
+      setTimeout(() => { const ta = $('#fStory'); if (ta) { ta.scrollIntoView({ block: 'center' }); ta.focus(); } }, 350); };
+  };
+  const onKey = e => {
+    if (!m.el.isConnected) { document.removeEventListener('keydown', onKey); return; }
+    if (e.key === 'ArrowLeft' && i > 0) { i--; draw(); } else if (e.key === 'ArrowRight' && i < ids.length - 1) { i++; draw(); }
+  };
+  document.addEventListener('keydown', onKey);
+  draw();
+}
+// 列印故事頁：換行很多的故事字稍微縮小，才放得進格子（13.5px 時一行約 34 字、可放約 230px 高）
+function storyFont(text) {
+  for (const fs of [13.5, 12.5, 11.5, 10.5]) {
+    const cpl = Math.floor(34 * 13.5 / fs);
+    const lines = text.split('\n').reduce((a, l) => a + Math.max(1, Math.ceil(l.length / cpl)), 0);
+    if (lines * fs * 1.6 <= 225) return fs;
+  }
+  return 10;
+}
+function storyPagesHTML(t, only) {
+  const L = FT.layout(t, only ? { only } : {}), K = FT.kinMap(t), G = FT.generations(t);
+  const ps = Object.values(t.people).filter(p => (p.story || '').trim() && L.pos[p.id]).sort((a, b) => (G[a.id] - G[b.id]) || (L.pos[a.id].x - L.pos[b.id].x));
+  const out = [];
+  for (let k = 0; k < ps.length; k += 4) {
+    out.push(ps.slice(k, k + 4).map(p => {
+      const av = p.photo ? `<img src="${esc(p.photo)}" alt="">` : `<svg viewBox="0 0 60 60">${avatarSVG(p.gender, ageOf(L.pos[p.id].gen))}</svg>`;
+      return `<div class="st"><div class="h"><div class="a ${p.deceased ? 'dead' : ''}">${av}</div><div><div class="k">${esc(K[p.id].zh)}${p.deceased ? '・已過世' : ''}</div><div class="n">${esc(displayName(p, t.people) || '（未填名字）')}${FT.tribalName(p, t.people) && p.han ? '　<span style="font-weight:400;font-size:14px">' + esc(p.han) + '</span>' : ''}</div></div></div><div class="x" style="font-size:${storyFont(p.story)}px">${esc(p.story)}</div></div>`;
+    }).join(''));
+  }
+  return out;
+}
+
 /* ---------- 族群來源 ---------- */
 const OCOL = { '泰雅族': '#a8231c', '漢族': '#2f4858' };
 const OPAL = ['#b07a1e', '#2e6b3f', '#8a5a3b', '#6b4a7a', '#2a7a7a', '#b5532f', '#4f6a2a', '#7a3b52'];
@@ -2045,6 +2153,14 @@ function renderPages(container, list, o) {
       el.innerHTML = pageHead(t, '名冊' + (plan.pages[0].title || '')) + rosterHTML(t, plan.only);
       container.appendChild(el);
     }
+    if (o.stories) {
+      const sp = storyPagesHTML(t, plan.only);
+      sp.forEach((html, k) => {
+        const el = document.createElement('div'); el.className = 'pg';
+        el.innerHTML = pageHead(t, '家族故事' + (sp.length > 1 ? `（${k + 1}/${sp.length}）` : '')) + `<div class="stories">${html}</div>`;
+        container.appendChild(el);
+      });
+    }
   });
 }
 function printDocHTML() {
@@ -2064,7 +2180,8 @@ function downloadPrintDoc(list) {
 }
 function printDialog(list) {
   const t = list[0], N = Object.keys(t.people).length, single = list.length === 1;
-  const o = { range: 'all', root: '', mode: 'fit', size: 'mid', roster: true };
+  const o = { range: 'all', root: '', mode: 'fit', size: 'mid', roster: true, stories: false };
+  const anyStory = list.some(tt => Object.values(tt.people).some(p => (p.story || '').trim()));
   const first = planPages(t, o);
   if (first.fitS < 0.45) o.mode = 'tile';
   const elders = Object.values(t.people).filter(p => FT.childrenOf(p.id, t.people).length)
@@ -2079,6 +2196,7 @@ function printDialog(list) {
       <div class="grp"><b>版面</b>${chips('mode', [['fit', '縮成一張 A4'], ['tile', '分頁拼貼（字比較大）']])}</div>
       <div class="grp" id="gSize"><b>拼貼字級</b>${chips('size', [['mid', '中'], ['big', '大']])}</div>
       <div class="grp"><b>名冊</b>${chips('roster', [['1', '附上名冊表格'], ['0', '不要']])}</div>
+      ${anyStory ? `<div class="grp"><b>小故事</b>${chips('stories', [['1', '附上家族故事頁'], ['0', '不要']])}</div>` : ''}
       <div class="psum" id="pSum"></div>
       <div class="pv-pages" id="pPrev"></div>
     </div>`, [
@@ -2108,7 +2226,7 @@ function printDialog(list) {
     $('#pPrev').innerHTML = $('#print').innerHTML;
   };
   m.el.querySelectorAll('.chip').forEach(c => c.onclick = () => {
-    const k = c.dataset.k; o[k] = k === 'roster' ? c.dataset.v === '1' : c.dataset.v; update();
+    const k = c.dataset.k; o[k] = k === 'roster' || k === 'stories' ? c.dataset.v === '1' : c.dataset.v; update();
   });
   const sel = m.el.querySelector('#pRoot'); if (sel) sel.onchange = () => { o.root = sel.value; update(); };
   update();
@@ -2182,8 +2300,9 @@ function setEditable(on) { ['#bExport', '#bImport'].forEach(s => $(s).disabled =
     const q = inp.value.trim().toLowerCase();
     if (!q || !tree) { res.classList.add('hidden'); return; }
     const K = FT.kinMap(tree);
-    const hits = Object.values(tree.people).filter(p => [p.given, p.han, FT.tribalName(p, tree.people), K[p.id].zh, K[p.id].term].some(s => (s || '').toLowerCase().includes(q))).slice(0, 30);
-    res.innerHTML = hits.length ? hits.map(p => `<button data-id="${p.id}"><span class="k">${esc(K[p.id].zh)}</span><span><b>${esc(FT.tribalName(p, tree.people) || '')}</b> ${esc(p.han)}</span></button>`).join('') : '<div style="padding:10px 12px;color:#6f625a">找不到</div>';
+    const hits = Object.values(tree.people).filter(p => [p.given, p.han, FT.tribalName(p, tree.people), K[p.id].zh, K[p.id].term, p.story].some(s => (s || '').toLowerCase().includes(q))).slice(0, 30);
+    const inStory = p => ![p.given, p.han, FT.tribalName(p, tree.people), K[p.id].zh, K[p.id].term].some(s => (s || '').toLowerCase().includes(q));
+    res.innerHTML = hits.length ? hits.map(p => `<button data-id="${p.id}"><span class="k">${esc(K[p.id].zh)}</span><span><b>${esc(FT.tribalName(p, tree.people) || '')}</b> ${esc(p.han)}${inStory(p) ? ' <span style="color:#7a4f0e;font-size:15px">📖 故事裡有「' + esc(inp.value.trim()) + '」</span>' : ''}</span></button>`).join('') : '<div style="padding:10px 12px;color:#6f625a">找不到</div>';
     res.classList.remove('hidden');
     res.querySelectorAll('button').forEach(b => b.onclick = () => { res.classList.add('hidden'); inp.value = ''; inp.blur(); select(b.dataset.id); focusPerson(b.dataset.id, Math.max(view.s, 0.9)); });
   };
@@ -2213,6 +2332,7 @@ $('#bHelp').onclick = () => modal('❓ 使用說明', `
     <li>兄弟姊妹的順序排錯了：<b>按住卡片不放，等卡片浮起來</b>，拖到其他兄弟姊妹之間（會出現黃色直線），放開就換好了，排行和「哥哥／弟弟」的稱謂會跟著改。</li>
     <li>放相片：點一個人，按「📷 選相片」，可以拍照或從相簿選。相片會自動縮小、裁成圓形，取代原本的小人圖。</li>
     <li>「🌱 族群來源」會依每位家人填的族籍，算出族群來源（例如泰雅族 3/4、漢族 1/4），也會列出用了誰的族籍。這只是資料計算，不代表一個人「有多少」是哪一族。</li>
+    <li>小故事：點一個人，在「📖 小故事」寫下他的故事（最多 300 字）。卡片上會出現「📖 故事」，點一下就能看，還可以「上一則／下一則」依序看全家的故事。列印時可以勾選「附上家族故事頁」。</li>
     <li>過世的家人：點他的卡片，勾選「<b>已過世</b>」，卡片會變成灰色並標示「已過世」。</li>
     <li>族名欄<b>只填這個人自己的名字</b>，爸爸的名字會自動接在後面（子連父名）。家裡寫法不一樣時，到「更多設定」自己打完整族名。</li>
     <li>資料會<b>自動存在這台裝置</b>。做完或下課前，按「💾 匯出檔案」，把檔案交給老師。</li>

@@ -21,10 +21,10 @@
 | `src/core.js` | 核心邏輯（純函式）：子連父名、稱謂推算、新增／刪除家人、排版、列印分支、離婚／收養、族籍 |
 | `src/app.html` | 介面（HTML＋CSS＋JS），`/*@@CORE@@*/` 佔位符的位置會塞入 core.js |
 | `build.py` | `python3 build.py` → 產生 index.html |
-| `tests/test.js` | `node tests/test.js` → 核心邏輯測試（目前 205/205 通過，含兄弟姊妹排版檢查、拖拉換順序、相片安全檢查、族群來源計算、排行輸入、CSS 大括號成對） |
+| `tests/test.js` | `node tests/test.js` → 核心邏輯測試（目前 211/211 通過，含小故事、含兄弟姊妹排版檢查、拖拉換順序、相片安全檢查、族群來源計算、排行輸入、CSS 大括號成對） |
 | `tests/big.js` | 產生 155 人的大家族測試資料 |
 | `tests/sample_15.json`、`tests/sample_155.json` | 範例匯出檔（假資料），可用「開啟檔案」測試 |
-| `tests/browser/*.py` | Playwright 瀏覽器測試。e2e4（新增流程）、e2e5（離婚收養族籍）、e2e6（再婚排版）、e2e7_drag（滑鼠／平板拖拉換順序，用 tests/sample_drag.json）、e2e8_photo（相片上傳、容量不足、老師匯入，用 tests/img/）、e2e9_origin（族群來源視窗，用 tests/sample_origin.json）、e2e10_notion_fixes（列印取消、排行輸入、推算標示）可以直接跑。e2e2、e2e3、audit 原本寫在另一個工作目錄，要先調整範例檔路徑 |
+| `tests/browser/*.py` | Playwright 瀏覽器測試。e2e4（新增流程）、e2e5（離婚收養族籍）、e2e6（再婚排版）、e2e7_drag（滑鼠／平板拖拉換順序，用 tests/sample_drag.json）、e2e8_photo（相片上傳、容量不足、老師匯入，用 tests/img/）、e2e9_origin（族群來源視窗，用 tests/sample_origin.json）、e2e10_notion_fixes（列印取消、排行輸入、推算標示）、e2e11_story（小故事：寫、看、上一則下一則、搜尋、列印、老師檢視）可以直接跑。e2e8_photo 偶爾會因為時間差逾時，重跑一次即可e2e2、e2e3、audit 原本寫在另一個工作目錄，要先調整範例檔路徑 |
 
 ## 修改流程（每次都照做）
 
@@ -41,7 +41,7 @@
 { app:'datong-family-tree', version:1, student:{cls, seat}, meId, terms:{...稱謂覆寫}, updatedAt,
   people:{ id:{ id, given(族名-自己的名字), han(漢名), gender('M'|'F'|''), bo(排行),
                fullOverride(手動完整族名), fatherId, motherId, spouses:[], divorced:[],
-               adoptF, adoptM, tribe(族籍), deceased(已過世), photo(相片 data URL) } } }
+               adoptF, adoptM, tribe(族籍), deceased(已過世), photo(相片 data URL), story(小故事) } } }
 ```
 
 - localStorage key：`datongFT.mine.v1`（學生自己的族譜）、`datongFT.class.v1`（老師匯入的全班清單，**存檔時拿掉相片**，記憶體裡保留到重新整理為止）
@@ -87,6 +87,15 @@
 - ✅ 屬實＋已修：排行可重複、可存 0。改用 `FT.setBirthOrder`：只收 1～30 整數；原本 1、2、3……沒空號時當成「換到第 n 個」，有空號時撞號者往後移；按 Enter 或離開欄位才套用；不合法時紅字提示並不套用；開舊檔時 0、負數、文字變成「不知道」
 - ✅ 部分採納：族群來源缺資料。保留 Bacon 選的規則（用本人族籍補），但結果旁標「其中 1/2 是推算」，清單中標「推算」，說明加上「也不是基因檢測的結果」。若 Bacon 想改成顯示「未知」，只要改 ancestry 裡補缺的那段
 - 屬實的限制：重疊問題是用重建的家族測的，要 Bacon 原本的族譜檔才能百分之百確認
+
+## 小故事（2026-11-06，Bacon 決定：300 字、列印由老師勾選、只做文字）
+
+- 編輯欄：放在「相片／已過世」下面、「加家人」上面；最多 300 字、12 行（`FT.cleanStory`，多的行接到第 12 行）；有字數計算和「匯出時故事會一起帶過去」的提醒
+- 族譜卡片：有故事才出現「📖 故事」（左下角）；右下角標籤很多時改成頭像角落的圓形 📖，標籤也縮小（同時修正原本標籤太多會超出卡片左邊的問題）
+- 點 📖 開「家族故事」視窗（不開編輯欄）：大字、上一則／下一則（也可按 ← →）、第幾則；「✏️ 修改」會跳到那個人的編輯欄並把游標放進故事欄；老師檢視時沒有修改鈕
+- 找家人也搜尋故事內容（結果標「📖 故事裡有『…』」）
+- 列印視窗有故事時多一組「小故事：附上家族故事頁／不要」，預設不要；故事頁 A4 一頁 4 則，換行多的故事字會自動縮小（`storyFont`）
+- 順便修正：彈窗「點背景關閉」改成按下和放開都在背景才算。原本在觸控螢幕上，點 📖 打開的視窗會被同一下觸控補發的 click 立刻關掉
 
 ## 還在等 Bacon 確認或之後可以做的
 

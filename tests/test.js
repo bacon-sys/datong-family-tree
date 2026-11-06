@@ -460,5 +460,21 @@ for (const f of ['sample_15.json', 'sample_155.json']) sibCheck(FT.validate(JSON
   ok(!neg && depth === 0, 'CSS 大括號成對');
   ok(/(^|\n)#print\{display:none\}/.test(css), '螢幕上預設不顯示列印內容');
 }
+
+// 小故事
+{
+  const ts = FT.newTree({ given: 'S', gender: 'M' });
+  ts.people[ts.meId].story = '爺爺年輕時常上山打獵。\n第二行';
+  const back = FT.validate(JSON.parse(JSON.stringify(ts)));
+  eq(back.people[ts.meId].story, '爺爺年輕時常上山打獵。\n第二行', '小故事：匯出再開啟後保留（含換行）');
+  ts.people[ts.meId].story = '字'.repeat(500);
+  eq(FT.validate(JSON.parse(JSON.stringify(ts))).people[ts.meId].story.length, FT.STORY_MAX, '小故事：超過 300 字會截掉');
+  ts.people[ts.meId].story = 123;
+  eq(FT.validate(JSON.parse(JSON.stringify(ts))).people[ts.meId].story, '', '小故事：不是文字就當成沒寫');
+  eq(FT.STORY_MAX, 300, '小故事上限 300 字');
+  const many = FT.cleanStory(Array.from({ length: 20 }, (_, i) => 'L' + i).join('\n'));
+  eq(many.split('\n').length, 12, '小故事最多 12 行');
+  ok(many.endsWith('L19'), '多的行接在最後一行，不會不見');
+}
 console.log(`\n✓ ${pass}/${pass + fail} 通過` + (fail ? `（${fail} 項失敗）` : ''));
 process.exit(fail ? 1 : 0);
